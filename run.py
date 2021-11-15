@@ -1,20 +1,47 @@
-import torch.nn as nn
-import torch
+# import torch.nn as nn
+# import torch
 from options import get_options
 import os
 from itertools import product
 import json
+import sys
+import consts
 
+from pathlib import Path
 
-def train(opts):
-  torch.manual_seed(opts.seed)
-  if not os.path.exists(opts.save_dir):
-    os.makedirs(opts.save_dir)
-    # Save arguments so exact configuration can always be found
-    with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
-        json.dump(vars(opts), f, indent=True)
-  pretrained_model = "./target_model_param/lenet_mnist_model.pth"
-  batch_size = opts.batch_size
-  device = opts.device
-  # TODO: Add rest of code here, this is the entry file (file that will be run)
-  return
+def run(opts):
+    baseline_strategy = (
+        opts.strategy == consts.BS_DEFAULT
+        or opts.strategy == consts.BS_SB
+        or opts.strategy == consts.BS_PC
+        or opts.strategy == consts.BS_SB_PC 
+    )
+    online_strategy = (
+        opts.strategy == consts.BS_SB_ML_SVMRank
+        or opts.strategy == consts.BS_SB_ML_LR
+        or opts.strategy == consts.BS_SB_ML_NN
+        or opts.strategy == consts.BS_SB_ML_GNN
+    )
+    
+    solve_instance = None
+    if baseline_strategy:
+        print("* Branching strategy: Baseline")
+        from strategy import baseline_solve_instance        
+        solve_instance = baseline_solve_instance
+    elif online_strategy:
+        print("  Branching strategy: Online")
+        from strategy import online_solve_instance
+        solve_instance = online_solve_instance
+    else:
+        raise ValueError("Unknown branching strategy")
+    
+    train_path = Path(opts.train_dataset)
+    for f in train_path.glob('*.lp'):
+        print("*", str(f))
+        solve_instance(path=str(f))
+        
+
+if __name__ == "__main__":    
+    opts = get_options(sys.argv[1:])
+    run(opts)
+

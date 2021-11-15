@@ -2,7 +2,7 @@ import os
 import time
 import argparse
 import torch
-
+import consts
 
 def get_options(args=None):
     parser = argparse.ArgumentParser(
@@ -39,8 +39,8 @@ def get_options(args=None):
     parser.add_argument(
         "--train_dataset",
         type=str,
-        default="datasets/train.pt",
-        help="Dataset file to use for training",
+        default="./data/train",
+        help="Folder containing lp files of training instances",
     )
 
     parser.add_argument(
@@ -78,6 +78,13 @@ def get_options(args=None):
         "--save_dir", help="Path to save the checkpoints",
     )
 
+    parser.add_argument(
+        "--strategy",
+        help="Branching strategy for solving mip",
+        type=int,
+        default=consts.BS_SB_ML_SVMRank
+    )
+
 
 
     opts = parser.parse_args(args)
@@ -92,6 +99,7 @@ def get_options(args=None):
     assert (
         opts.dataset_size % opts.batch_size == 0
     ), "Epoch size must be integer multiple of batch size!"
+
     return opts
     
     

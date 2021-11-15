@@ -21,8 +21,8 @@ Original file is located at
 - [ ] Limit dual simplex LP iterations to 50 for calculating SB score
 """
 
-!pip install cplex
-!pip install docplex
+# !pip install cplex
+# !pip install docplex
 
 from math import floor
 from operator import itemgetter
@@ -687,7 +687,7 @@ def solve_instance(path='set_cover.lp',
     set_params(c, primal_bound=primal_bound, test=True)
 
     stat_feat = StaticFeatures(c)
-    print('Stat feat shape', stat_feat.features.shape)
+    print('Stat feat shape', type(stat_feat), stat_feat.features.shape)
     var_lst = c.variables.get_names()
     var_idx_lst = c.variables.get_indices(var_lst)
 

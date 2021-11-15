@@ -1,15 +1,15 @@
 # local package
--e .
+#-e .
 
 # external requirements
 # backwards compatibility
 
 #Dev Requirements
-matplotlib>=3.2.1
-numpy>=1.19.0
-scipy>=1.4.0
-torch>=1.7.0
-torchvision>=0.8.1
-tqdm>=4.47.0
-seaborn
-ecole
+#matplotlib>=3.2.1
+#numpy>=1.19.0
+#scipy>=1.4.0
+#torch>=1.7.0
+#torchvision>=0.8.1
+#tqdm>=4.47.0
+#seaborn
+#ecole
