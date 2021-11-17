@@ -1,5 +1,16 @@
 import consts
+import cplex.callbacks as CPX_CB
 
+
+class LoggingCallback(CPX_CB.MIPInfoCallback):
+    def __call__(self):
+        nn = self.get_num_nodes()
+        if nn > self.num_nodes:
+            self.num_nodes = nn
+
+        self.total_time = self.get_time() - self.get_start_time()
+
+        
 def set_params(c, primal_bound, test=False):
     # Single threaded
     c.parameters.threads.set(1)
@@ -70,3 +81,11 @@ def apply_branch_history(c, branch_history):
             c.variables.set_lower_bounds(b_var, b_val)
         elif b_type == consts.UPPER_BOUND:
             c.variables.set_upper_bounds(b_var, b_val)
+            
+
+def get_logging_callback(c):    
+    log_cb = c.register_callback(LoggingCallback)
+    log_cb.num_nodes = 0
+    log_cb.total_time = 0
+    
+    return log_cb

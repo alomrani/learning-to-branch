@@ -11,3 +11,5 @@ K = 10
 EPSILON = 1e-6
 # Cutoff to decide variables with label 1
 ALPHA = 0.2
+
+SEEDS = [3, 1234, 23, 1000, 999999]

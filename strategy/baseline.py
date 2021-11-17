@@ -4,6 +4,8 @@ import cplex.callbacks as CPX_CB
 import consts
 import params
 
+from utils import get_logging_callback
+
 class VariableSelectionCallback(CPX_CB.BranchCallback):
     def create_default_branches(self):
         for branch in range(self.get_num_branches()):
@@ -15,7 +17,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             disable_cuts(self.c)
 
         # If strategy is SB_DEFAULT or PC_DEFAULT then shortcut
-        if self.strategy == BS_DEFAULT:
+        if self.strategy == BS_DEFAULT:            
             self.c.parameters.mip.strategy.variableselect.set(0)
             self.create_default_branches()
             return
@@ -45,6 +47,8 @@ def solve_instance(path='set_cover.lp',
     c = CPX.Cplex(path)
     set_params(c, primal_bound=primal_bound, test=test)
 
+    log_cb = get_logging_callback(c)
+
     vsel_cb = c.register_callback(VariableSelectionCallback)
     vsel_cb.c = c
     vsel_cb.strategy = branch_strategy
@@ -53,7 +57,5 @@ def solve_instance(path='set_cover.lp',
 
     # Solve the instance and save stats
     c.solve()
-    status = c.solution.get_status()
-    # print(status, log_cb.num_nodes, log_cb.total_time)
 
     return c

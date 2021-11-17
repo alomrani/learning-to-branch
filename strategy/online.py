@@ -12,15 +12,8 @@ from utils import set_params
 from utils import disable_cuts
 from utils import solve_as_lp
 from utils import apply_branch_history
+from utils import get_logging_callback
 
-
-class LoggingCallback(CPX_CB.MIPInfoCallback):
-    def __call__(self):
-        nc = self.get_num_nodes()
-        if nc > self.num_nodes:
-            self.num_nodes = nc
-
-        self.total_time = self.get_time() - self.get_start_time()
 
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
@@ -221,14 +214,11 @@ def solve_instance(path='set_cover.lp',
     set_params(c, primal_bound=primal_bound, test=test)
 
     stat_feat = StaticFeaturizer(c)
-    # print('Stat feat shape', type(stat_feat.features), stat_feat.features.shape)
     var_lst = c.variables.get_names()
     var_idx_lst = c.variables.get_indices(var_lst)
 
-    log_cb = c.register_callback(LoggingCallback)
-    log_cb.num_nodes = 0
-    log_cb.total_time = 0
-
+    log_cb = get_logging_callback(c)
+    
     vsel_cb = c.register_callback(VariableSelectionCallback)
     vsel_cb.c = c
     vsel_cb.var_lst = var_lst
@@ -250,7 +240,5 @@ def solve_instance(path='set_cover.lp',
 
     # Solve the instance and save stats
     c.solve()
-    status = c.solution.get_status()
-    # print(status, log_cb.num_nodes, log_cb.total_time)
 
     return c

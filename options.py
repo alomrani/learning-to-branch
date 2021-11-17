@@ -8,6 +8,13 @@ def get_options(args=None):
     parser = argparse.ArgumentParser(
         description="Options for learning to branch"
     )
+    
+    parser.add_argument(
+        "--mode",
+        type=int, 
+        default = consts.GENERATE_OPTIMAL,
+        help="Generate optimal solution or do branching"
+    )
 
     # Training
 
