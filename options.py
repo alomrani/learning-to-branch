@@ -1,8 +1,11 @@
+import argparse
 import os
 import time
-import argparse
+
 import torch
+
 import consts
+
 
 def get_options(args=None):
     parser = argparse.ArgumentParser(
@@ -12,9 +15,32 @@ def get_options(args=None):
     parser.add_argument(
         "--mode",
         type=int, 
-        default = consts.GENERATE_OPTIMAL,
+        default = consts.BRANCHING,
         help="Generate optimal solution or do branching"
     )
+    
+    parser.add_argument(
+        "--inst_parallel",
+        type=int, 
+        default = 0,
+        help="Flag to control solving instances in parallel"
+    )
+    
+    parser.add_argument(
+        "--num_workers",
+        type=int, 
+        default = 4,
+        help="Number of parallel workers. Used when inst_parallel is 1"
+    )
+    
+    parser.add_argument(
+        "--timelimit",
+        type=int, 
+        default = 600,
+        help="Solver timelimit in seconds"
+    )
+    
+    
 
     # Training
 
@@ -70,7 +96,7 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--output_dir", default="outputs", help="Directory to write model outputs to"
+        "--output_dir", default="./outputs", help="Directory to write model outputs to"
     )
 
     parser.add_argument(
@@ -89,7 +115,7 @@ def get_options(args=None):
         "--strategy",
         help="Branching strategy for solving mip",
         type=int,
-        default=consts.BS_SB_ML_SVMRank
+        default=consts.BS_DEFAULT
     )
 
 

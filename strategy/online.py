@@ -1,19 +1,14 @@
 from operator import itemgetter
 
+import consts
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
-from scipy.sparse import csr_matrix
-
-import consts
 import params
-from featurizer import StaticFeaturizer, DynamicFeaturizer
-from utils import set_params
-from utils import disable_cuts
-from utils import solve_as_lp
-from utils import apply_branch_history
-from utils import get_logging_callback
-
+from featurizer import DynamicFeaturizer, StaticFeaturizer
+from scipy.sparse import csr_matrix
+from utils import (apply_branch_history, disable_cuts, get_logging_callback,
+                   set_params, solve_as_lp)
 
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
@@ -199,19 +194,22 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         #     self.abort()
 
 
-def solve_instance(path='set_cover.lp',
+def solve_instance(path='set_cover.lp',                   
+                   primal_bound=None,
+                   timelimit=None,
+                   seed=None,
+                   test=True,
                    branch_strategy=consts.BS_SB_PC,
                    upper_bound=consts.UPPER_BOUND,
                    lower_bound=consts.LOWER_BOUND,
-                   primal_bound=None,
                    theta=params.THETA,
                    k=params.K,
                    alpha=params.ALPHA,
-                   epsilon=params.EPSILON,
-                   test=True):
+                   epsilon=params.EPSILON):                   
     # Read instance and set default parameters
     c = CPX.Cplex(path)
-    set_params(c, primal_bound=primal_bound, test=test)
+    set_params(c, primal_bound=primal_bound, timelimit=timelimit, 
+               seed=seed, test=test)
 
     stat_feat = StaticFeaturizer(c)
     var_lst = c.variables.get_names()
@@ -241,4 +239,4 @@ def solve_instance(path='set_cover.lp',
     # Solve the instance and save stats
     c.solve()
 
-    return c
+    return c, log_cb

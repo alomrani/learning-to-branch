@@ -11,7 +11,7 @@ class LoggingCallback(CPX_CB.MIPInfoCallback):
         self.total_time = self.get_time() - self.get_start_time()
 
         
-def set_params(c, primal_bound, test=False):
+def set_params(c, primal_bound=None, timelimit=None, seed=None, test=False):
     # Single threaded
     c.parameters.threads.set(1)
 
@@ -20,11 +20,17 @@ def set_params(c, primal_bound, test=False):
 
     # Set the primal bound if provided    
     if primal_bound is not None:
-        if c.objective.get_sense() == MINIMIZE:
+        if c.objective.get_sense() == consts.MINIMIZE:
             c.parameters.mip.tolerances.lowercutoff.set(primal_bound)
         else:
             c.parameters.mip.tolerances.uppercutoff.set(primal_bound)
 
+    if timelimit is not None:
+        c.parameters.timelimit.set(timelimit)
+        
+    if seed is not None:
+        c.parameters.randomseed.set(seed)
+        
     if not test:
         disable_output(c)
 

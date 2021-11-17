@@ -1,10 +1,10 @@
+import consts
 import cplex as CPX
 import cplex.callbacks as CPX_CB
-
-import consts
 import params
+from consts import BS_DEFAULT, BS_PC, BS_SB, BS_SB_PC
+from utils import disable_cuts, get_logging_callback, set_params
 
-from utils import get_logging_callback
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
     def create_default_branches(self):
@@ -39,13 +39,16 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
 
 def solve_instance(path='set_cover.lp',
-                   branch_strategy=consts.BS_SB_PC,
                    primal_bound=None,
-                   theta=params.THETA,
-                   test=True):
+                   timelimit=None,
+                   seed=None,
+                   test=True,
+                   branch_strategy=consts.BS_SB_PC,
+                   theta=params.THETA):
     # Read instance and set default parameters
     c = CPX.Cplex(path)
-    set_params(c, primal_bound=primal_bound, test=test)
+    set_params(c, primal_bound=primal_bound, timelimit=timelimit, 
+               seed=seed, test=test)
 
     log_cb = get_logging_callback(c)
 
@@ -58,4 +61,4 @@ def solve_instance(path='set_cover.lp',
     # Solve the instance and save stats
     c.solve()
 
-    return c
+    return c, log_cb
