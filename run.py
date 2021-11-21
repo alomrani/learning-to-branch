@@ -8,11 +8,12 @@ from options import get_options
 from utils import disable_output
 
 
-def worker(solve_instance, f, primal_bound, timelimit, seed, opts):
+def worker(solve_instance, f, primal_bound, branch_strategy, timelimit, seed):
     print(f"    {str(f)}, {seed}")
     c, log_cb = solve_instance(path=str(f),
                                primal_bound=primal_bound,
                                timelimit=timelimit,
+                               branch_strategy=branch_strategy,
                                seed=seed,
                                test=False,
                                branch_strategy=opts.strategy)
@@ -21,9 +22,8 @@ def worker(solve_instance, f, primal_bound, timelimit, seed, opts):
     solve_status_verbose = c.solution.status[c.solution.get_status()]
 
     key = f.stem + f'_{seed}.lp'
-    result_dict = {}
-    result_dict[key] = {'status': solve_status_id,
-                        'status_verbose': solve_status_verbose}
+    result_dict = {key: {'status': solve_status_id,
+                         'status_verbose': solve_status_verbose}}
     if solve_status_id == c.solution.status.MIP_optimal:
         result_dict[key]['total_time'] = log_cb.total_time
         result_dict[key]['num_nodes'] = log_cb.num_nodes
@@ -95,12 +95,13 @@ def run(opts):
                         results.append(pool.apply_async(worker,
                                                         args=(solve_instance, f,
                                                               primal_bound,
+                                                              opts.strategy,
                                                               opts.timelimit,
                                                               seed, opts)))
                     else:
-                        results.append(worker(solve_instance, f, primal_bound,
-                                              opts.timelimit, seed, opts))
-
+                        results.append(worker(solve_instance, f, primal_bound, opts.strategy,
+                                              opts.timelimit, seed))
+                    break
             break
 
         # Wait for the workers to get finish
