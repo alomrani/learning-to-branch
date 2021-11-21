@@ -14,18 +14,17 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
     def __call__(self):
         self.times_called += 1
 
+        if self.branch_strategy == consts.BS_DEFAULT:
+            return
+
+        # Find candidates for branching
+        pseudocosts = self.get_pseudo_costs()
+        values = self.get_values()
+        candidates = get_candidates(pseudocosts, values, self.branch_strategy)
+        if len(candidates) == 0:
+            return
+
         if self.branch_strategy == consts.BS_PC:
-            pseudocosts = self.get_pseudo_costs()
-            values = self.get_values()
-            candidates = get_candidates(pseudocosts, values)
-
-            # pseudocosts = self.get_pseudo_costs(self.var_idx_lst)
-            # values = self.get_values(self.var_idx_lst)
-            # candidates = get_candidates(pseudocosts, values)
-
-            if len(candidates) == 0:
-                return
-
             branching_var = candidates[0]
             branching_val = self.get_values(branching_var)
             obj_val = self.get_objective_value()

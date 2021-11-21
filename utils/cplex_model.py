@@ -166,16 +166,19 @@ def get_clone(context):
     return cclone
 
 
-def get_candidates(pseudocosts, values):
+def get_candidates(pseudocosts, values, branch_strategy):
     up_frac = np.ceil(values) - values
     down_frac = values - np.floor(values)
 
-    scores = [uf * df * pseudocost[0] * pseudocost[1] for pseudocost, uf, df in zip(pseudocosts, up_frac, down_frac)]
+    scores = [uf * df * pc[0] * pc[1] for pc, uf, df in zip(pseudocosts,
+                                                            up_frac,
+                                                            down_frac)]
     variables = sorted(range(len(scores)), key=lambda i: -scores[i])
 
+    num_candidates = params.K if branch_strategy != consts.BS_PC else 1
     candidates = []
     for i in variables:
-        if len(candidates) == params.K:
+        if len(candidates) == num_candidates:
             break
 
         value = values[i]
