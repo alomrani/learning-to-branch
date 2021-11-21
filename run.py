@@ -8,13 +8,14 @@ from options import get_options
 from utils import disable_output
 
 
-def worker(solve_instance, f, primal_bound, timelimit, seed):
+def worker(solve_instance, f, primal_bound, timelimit, seed, opts):
     print(f"    {str(f)}, {seed}")
     c, log_cb = solve_instance(path=str(f),
                                primal_bound=primal_bound,
                                timelimit=timelimit,
                                seed=seed,
-                               test=False)
+                               test=False,
+                               branch_strategy=opts.strategy)
 
     solve_status_id = c.solution.get_status()
     solve_status_verbose = c.solution.status[c.solution.get_status()]
@@ -95,11 +96,11 @@ def run(opts):
                                                         args=(solve_instance, f,
                                                               primal_bound,
                                                               opts.timelimit,
-                                                              seed,)))
+                                                              seed, opts)))
                     else:
                         results.append(worker(solve_instance, f, primal_bound,
-                                              opts.timelimit, seed))
-                    
+                                              opts.timelimit, seed, opts))
+
             break
 
         # Wait for the workers to get finish
