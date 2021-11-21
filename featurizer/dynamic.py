@@ -7,7 +7,8 @@ from scipy.sparse import csr_matrix
 
 class DynamicFeaturizer:
     def __init__(self, branch_instance, candidates, cclone):
-        static_features = branch_instance.stat_feat                
+
+        static_features = branch_instance.stat_feat
         # Part 1: Slack and ceil distances
         self.values = np.array(branch_instance.get_values()).reshape(-1, 1)
         self.values = self.values[candidates]  # Filter by candidates

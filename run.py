@@ -15,8 +15,7 @@ def worker(solve_instance, f, primal_bound, branch_strategy, timelimit, seed):
                                timelimit=timelimit,
                                branch_strategy=branch_strategy,
                                seed=seed,
-                               test=False,
-                               branch_strategy=opts.strategy)
+                               test=False)
 
     solve_status_id = c.solution.get_status()
     solve_status_verbose = c.solution.status[c.solution.get_status()]
