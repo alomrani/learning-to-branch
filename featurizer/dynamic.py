@@ -6,26 +6,8 @@ from scipy.sparse import csr_matrix
 
 
 class DynamicFeaturizer:
-    def __init__(self, branch_instance, candidates):
+    def __init__(self, branch_instance, candidates, cclone):
         static_features = branch_instance.stat_feat                
-        self.num_vars = branch_instance.c.variables.get_num()
-        self.var_names = branch_instance.c.variables.get_names()  # Simple list of strings
-        self.var_types = branch_instance.c.variables.get_types()  # Simple list of 'B', 'I' or 'C'
-        self.columns = branch_instance.c.variables.get_cols()  # List of SparsePair objects - SparsePair(ind=[], val=[])
-        self.num_rows = branch_instance.c.linear_constraints.get_num()
-        self.rows = branch_instance.c.linear_constraints.get_rows()  # List of SparsePair objects - SparsePair(ind=[], val=[])
-        self.rhs = np.array(branch_instance.c.linear_constraints.get_rhs())  # Simple list of values
-        self.obj = np.array(branch_instance.c.objective.get_linear())
-
-        # Generate the row x column matrix
-        self.matrix = csr_matrix((self.num_rows, self.num_vars))
-        for i, row in enumerate(self.rows):
-            data = np.array(row.val)
-            row_indices = np.empty(len(row.ind))
-            row_indices.fill(i)
-            col_indices = np.array(row.ind)
-            self.matrix += csr_matrix((data, (row_indices, col_indices)), shape=(self.num_rows, self.num_vars))
-
         # Part 1: Slack and ceil distances
         self.values = np.array(branch_instance.get_values()).reshape(-1, 1)
         self.values = self.values[candidates]  # Filter by candidates
@@ -75,10 +57,10 @@ class DynamicFeaturizer:
         self.features = np.c_[
             self.features, num_lower_infeasible, num_upper_infeasible, fraction_infeasible_lower, fraction_infeasible_upper]
         # Part 4: Stats. for constraint degrees
-
+        not_set_variables = (np.array(cclone.variables.get_lower_bounds()) != np.array(cclone.variables.get_upper_bounds()))
+        self.matrix = static_features.matrix.multiply(csr_matrix(not_set_variables[None, :]))
         non_zeros = self.matrix != 0
         num_const_for_var = np.transpose(non_zeros.sum(0))
-
         num_var_for_const = non_zeros.sum(1)
         degree_matrix = non_zeros.multiply(csr_matrix(num_var_for_const)).todense()
 

@@ -73,7 +73,7 @@ def solve_as_lp(c, max_iterations=None):
     status = c.solution.get_status()    
     objective = c.solution.get_objective_value() if status == consts.OPTIMAL else consts.INFEASIBILITY
     # BUG: Access dual solution only if status is optimal or feasible
-    dual_values = c.solution.get_dual_values()
+    dual_values = c.solution.get_dual_values() if status == consts.OPTIMAL else None
     return status, objective, dual_values
 
 

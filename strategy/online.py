@@ -9,6 +9,7 @@ from featurizer import DynamicFeaturizer, StaticFeaturizer
 from scipy.sparse import csr_matrix
 from utils import (apply_branch_history, disable_cuts, get_logging_callback,
                    set_params, solve_as_lp)
+from sklearn.svm import SVC
 
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
@@ -105,7 +106,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             if status_upper != consts.OPTIMAL:
                 self.num_infeasible_right[cand] += 1
 
-        return np.asarray(sb_scores)
+        return np.asarray(sb_scores), cclone
 
     def candidate_labels(self, candidate_scores):
         max_score = max(candidate_scores)
@@ -116,7 +117,10 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
     def bipartite_ranking(self, labels):
         bipartite_rank_labels = []
         feature_diff = []
-        node_feat = np.array(self.node_feat)
+        node_feat = np.array(self.node_feat).reshape((self.THETA, self.K, -1))
+        max_feat = np.argmax(node_feat, axis=1)[:, None, :]
+        node_feat = node_feat / (max_feat + (max_feat == 0).astype(int))
+        node_feat = node_feat.reshape((self.THETA * self.K, -1))
         for i in range(len(labels)):
             for j in range(i, len(labels)):
                 if i != j and labels[i] != labels[j] and i // self.K == j // self.K:
@@ -125,7 +129,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                     feature_diff.append(-(node_feat[i] - node_feat[j]))
                     bipartite_rank_labels.append(-(labels[i] - labels[j]))
 
-        return feature_diff, bipartite_rank_labels
+        return np.asarray(feature_diff), np.asarray(bipartite_rank_labels)
 
     def __call__(self):
         self.times_called += 1
@@ -161,20 +165,24 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
             if self.times_called == self.THETA:
                 # Train model
-                if self.strategy == BS_SB_ML_SVMRank:
+                if self.strategy == consts.BS_SB_ML_SVMRank:
                     feat_diff, rank_labels = self.bipartite_ranking(self.labels)
-                    self.model = SVC(gamma='scale', decision_function_shape='ovo')
+                    self.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='poly')
                     self.model.fit(feat_diff, rank_labels)
-                    
+
         else:
             # print("* using ML model")      
             cclone = self.get_clone()
             # Must be calculated in order to obtain dual prices (dual costs/shadow prices)
             status, parent_objval, dual_values = solve_as_lp(cclone)
             self.curr_node_dual_values = np.array(dual_values)
-            dynamic = DynamicFeatures(self, candidates)
-            X = (dynamic.features[:, None, :].repeat(len(dynamic.features), axis=1) - dynamic.features[None, :, :])
-            branch_var = candidates[np.argmax(self.model(X).sum(axis=1), axis=0)]
+            dfobj = DynamicFeaturizer(self, candidates, cclone)
+            dfobj.features = np.asarray(dfobj.features)
+            max_feat = dfobj.features.argmax(axis=0)
+            dfobj.features = dfobj.features / (max_feat + (max_feat == 0).astype(int))
+            X = (np.repeat(dfobj.features[:, None, :], len(dfobj.features), axis=1) - dfobj.features[None, :, :])
+            out = self.model.predict(np.reshape(X, (self.K ** 2, 72))).reshape((self.K, self.K, 1))
+            branch_var = candidates[np.argmax(out.sum(axis=1), axis=0).item()]
 
         assert branch_var is not None
         branch_val = self.get_values(branch_var)
