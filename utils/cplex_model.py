@@ -218,6 +218,7 @@ def get_sb_scores(context, candidates):
 
     sb_scores = []
     if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
+        context.curr_node_dual_values = np.asarray(dual_values)
         for var in candidates:
             upper_status, upper_objective = get_branch_solution(context, cclone, var, consts.LOWER_BOUND)
             lower_status, lower_objective = get_branch_solution(context, cclone, var, consts.UPPER_BOUND)
@@ -241,4 +242,4 @@ def get_sb_scores(context, candidates):
     else:
         print("Root LP infeasible...")
 
-    return sb_scores
+    return sb_scores, cclone

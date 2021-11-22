@@ -1,6 +1,6 @@
 from math import floor
 from operator import itemgetter
-
+import time
 import numpy as np
 from scipy.sparse import csr_matrix
 
@@ -10,7 +10,7 @@ class DynamicFeaturizer:
 
         static_features = branch_instance.stat_feat
         # Part 1: Slack and ceil distances
-        self.values = np.array(branch_instance.get_values()).reshape(-1, 1)
+        self.values = np.asarray(branch_instance.get_values()).reshape(-1, 1)
         self.values = self.values[candidates]  # Filter by candidates
 
         # 1. Min of slack and ceil
@@ -28,7 +28,7 @@ class DynamicFeaturizer:
         # Part 2: Pseudocosts
 
         # 3. Upwards and downwards pseudocosts weighted by fractionality
-        self.pseudocosts = np.array(branch_instance.get_pseudo_costs())
+        self.pseudocosts = np.asarray(branch_instance.get_pseudo_costs())
         self.pseudocosts = self.pseudocosts[candidates]
         up_down_pc = self.pseudocosts * fractionality
 
@@ -36,9 +36,9 @@ class DynamicFeaturizer:
         sum_pc = np.sum(self.pseudocosts, axis=1).reshape(-1, 1) * fractionality
 
         # 5. Ratio of pseudocosts weighted by fractionality
-        ratio_pc = (self.pseudocosts[:, 0] / self.pseudocosts[:, 1]).reshape(-1, 1) * fractionality
-        ratio_pc[np.isnan(ratio_pc)] = 0
-        ratio_pc[np.isinf(ratio_pc)] = 0
+        denom = self.pseudocosts[:, 1]
+        denom = denom + (denom == 0.).astype(int)
+        ratio_pc = (self.pseudocosts[:, 0] / denom).reshape(-1, 1) * fractionality
 
         # 6. Prod of pseudocosts weighted by fractionality
         prod_pc = np.prod(self.pseudocosts, axis=1).reshape(-1, 1) * fractionality
@@ -49,8 +49,8 @@ class DynamicFeaturizer:
         # print('1, 2', self.features.shape)
 
         # Part 3: Infeasibility statistics
-        num_lower_infeasible = branch_instance.num_infeasible_left[np.array(candidates)][:, None]
-        num_upper_infeasible = branch_instance.num_infeasible_right[np.array(candidates)][:, None]
+        num_lower_infeasible = branch_instance.num_infeasible_left[candidates][:, None]
+        num_upper_infeasible = branch_instance.num_infeasible_right[candidates][:, None]
 
         fraction_infeasible_lower = num_lower_infeasible / branch_instance.times_called
         fraction_infeasible_upper = num_upper_infeasible / branch_instance.times_called
@@ -58,10 +58,9 @@ class DynamicFeaturizer:
         self.features = np.c_[
             self.features, num_lower_infeasible, num_upper_infeasible, fraction_infeasible_lower, fraction_infeasible_upper]
         # Part 4: Stats. for constraint degrees
-        not_set_variables = (np.array(cclone.variables.get_lower_bounds()) != np.array(cclone.variables.get_upper_bounds()))
+        not_set_variables = (np.asarray(cclone.variables.get_lower_bounds()) != np.asarray(cclone.variables.get_upper_bounds()))
         self.matrix = static_features.matrix.multiply(csr_matrix(not_set_variables[None, :]))
         non_zeros = self.matrix != 0
-        num_const_for_var = np.transpose(non_zeros.sum(0))
         num_var_for_const = non_zeros.sum(1)
         degree_matrix = non_zeros.multiply(csr_matrix(num_var_for_const)).todense()
 
@@ -78,18 +77,15 @@ class DynamicFeaturizer:
         max_degrees = np.transpose(np.max(degree_matrix, axis=0))[candidates, :]
         
         # Mean Ratio static to Dynamic
-        mean_degrees_c = mean_degrees.copy()
-        mean_degrees_c[mean_degrees_c == 0.] = 1.
+        mean_degrees_c = mean_degrees + (mean_degrees == 0).astype(float)
         mean_degrees_ratio = static_features.features[candidates, 4] / mean_degrees_c
 
         # Min Ratio static to Dynamic
-        min_degrees_c = min_degrees.copy()
-        min_degrees_c[min_degrees_c == 0.] = 1.
+        min_degrees_c = min_degrees + (min_degrees == 0.).astype(float)
         min_degrees_ratio = static_features.features[candidates, 6] / min_degrees_c
 
         # Max Ratio static to Dynamic
-        max_degrees_c = max_degrees.copy()
-        max_degrees_c[max_degrees_c == 0.] = 1.
+        max_degrees_c = max_degrees + (max_degrees == 0.).astype(float)
         max_degrees_ratio = static_features.features[candidates, 7] / max_degrees_c
 
         # Add to features
@@ -101,7 +97,6 @@ class DynamicFeaturizer:
         pos_rhs = rhs[rhs > 0]
         neg_rhs = rhs[rhs < 0]
 
-        mat = static_features.matrix.todense()
         candidate_matrix = static_features.matrix[:, candidates].todense()
         pos_ratio_matrix = np.divide(candidate_matrix[(rhs > 0).ravel(), :], pos_rhs.reshape(-1, 1))
         pos_ratio_matrix = pos_ratio_matrix if pos_ratio_matrix.size else np.zeros((1, candidate_matrix.shape[1]))
@@ -154,7 +149,7 @@ class DynamicFeaturizer:
 
         # Part 7: Stats for active constraints
         ## TODO: CHECK IF STATS ARE OVER ABSOLUTE VALUE OF CONSTRAINSTS COEFFICIENTS
-        slacks = np.array(branch_instance.get_linear_slacks())
+        slacks = np.asarray(branch_instance.get_linear_slacks())
         active_constraints = slacks == 0
 
         active_matrix = static_features.matrix[active_constraints, :]
@@ -207,7 +202,7 @@ class DynamicFeaturizer:
         inv_sum_candidate_count = np.transpose(np.sum(count_inverse_sum_candidate_matrix, axis=0))
 
         # Dual Cost weighting
-        dual_values = np.array(branch_instance.curr_node_dual_values[np.array(active_constraints)])[:, None]
+        dual_values = np.asarray(branch_instance.curr_node_dual_values[active_constraints])[:, None]
         active_matrix = np.asarray(active_matrix)
         dual_sum = np.sum(active_matrix * dual_values, axis=0)[:, None]
         dual_mean = np.mean(active_matrix * dual_values, axis=0)[:, None]
@@ -232,5 +227,3 @@ class DynamicFeaturizer:
             dual_count
         ]
 
-        
-        # print(self.features.shape)

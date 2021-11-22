@@ -1,6 +1,7 @@
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
+from sklearn.utils.multiclass import check_classification_targets
 
 import consts
 import params
@@ -13,7 +14,6 @@ from utils import set_params
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
     def __call__(self):
-        self.times_called += 1
 
         if self.branch_strategy == consts.BS_DEFAULT:
             return
@@ -24,12 +24,12 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         candidates = get_candidates(pseudocosts, values, self.branch_strategy)
         if len(candidates) == 0:
             return
-
+        self.times_called += 1
         branching_var = None
         # Strong branching
         if self.branch_strategy == consts.BS_SB or (
                 self.branch_strategy == consts.BS_SB_PC and self.times_called <= params.THETA):
-            sb_scores = get_sb_scores(self, candidates)
+            sb_scores, cclone = get_sb_scores(self, candidates)
             if len(sb_scores):
                 sb_scores = np.asarray(sb_scores)
                 branching_var = candidates[np.argmax(sb_scores)]

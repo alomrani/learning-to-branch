@@ -23,12 +23,13 @@ def worker(solve_instance, f, primal_bound, branch_strategy, timelimit, seed):
     key = f.stem + f'_{seed}.lp'
     result_dict = {key: {'status': solve_status_id,
                          'status_verbose': solve_status_verbose}}
+    num_nodes = c.solution.progress.get_num_nodes_processed()
     if solve_status_id == c.solution.status.MIP_optimal:
         result_dict[key]['total_time'] = log_cb.total_time
         result_dict[key]['num_nodes'] = log_cb.num_nodes
-        print(f"\tS: {solve_status_verbose}, T: {log_cb.total_time}, N:{log_cb.num_nodes}\n")
+        print(f"\tS: {solve_status_verbose}, T: {log_cb.total_time}, N:{num_nodes}\n")
     else:
-        print(f"\tS: {solve_status_verbose}, T: {log_cb.total_time}, N:{log_cb.num_nodes}\n")
+        print(f"\tS: {solve_status_verbose}, T: {log_cb.total_time}, N:{num_nodes}\n")
 
     return result_dict
 
