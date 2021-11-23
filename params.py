@@ -4,7 +4,7 @@
 # the AAAI Conference on Artificial Intelligence (Vol. 30, No. 1).
 
 # Number of nodes to run strong branching for data-collection
-THETA = 6
+THETA = 50
 # Maximum number of candidates to calculate strong-branching scores
 K = 10
 # Threshold to determine integrality of variables

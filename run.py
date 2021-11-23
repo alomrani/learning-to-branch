@@ -11,13 +11,14 @@ from options import get_options
 from utils import disable_output
 
 
-def worker(solve_instance, f, primal_bound, timelimit, seed):
-    print(f"    {str(f)}, {seed}")
+def worker(solve_instance, f, primal_bound, branch_strategy, timelimit, seed):
     c, log_cb = solve_instance(path=str(f), 
                                primal_bound=primal_bound, 
+                               branch_strategy=branch_strategy,
                                timelimit=timelimit,
                                seed=seed, 
                                test=False)
+
 
     solve_status_id = c.solution.get_status()
     solve_status_verbose = c.solution.status[c.solution.get_status()]
@@ -26,6 +27,7 @@ def worker(solve_instance, f, primal_bound, timelimit, seed):
     result_dict = {}
     result_dict[key] = {'status': solve_status_id,
                         'status_verbose': solve_status_verbose}    
+    print(f"    {str(f)}, {seed}")
     if solve_status_id == c.solution.status.MIP_optimal:
         result_dict[key]['total_time'] = log_cb.total_time
         result_dict[key]['num_nodes'] = log_cb.num_nodes
@@ -81,11 +83,13 @@ def run(opts):
         train_path = Path(opts.train_dataset)        
         output_path = Path(opts.output_dir)        
         
-        results = []
+        # Load dict containing optimal objective values to provide as cutoff
         opt_dict = pkl.load(open(output_path / 'train/optimal_obj.pkl', 'rb'))
+        # Create Pool object for parallel model
         if opts.inst_parallel:
             pool = mp.Pool(processes=opts.num_workers) 
             
+        results = []
         for f in train_path.glob('*.lp'):
             # Only process instances that are solved by the CPLEX to
             # optimality and use their optimal objective value as primal bound
@@ -96,16 +100,17 @@ def run(opts):
                         results.append(pool.apply_async(worker, 
                                                         args=(solve_instance, f, 
                                                               primal_bound, 
+                                                              opts.strategy,
                                                               opts.timelimit,
                                                               seed,)))
                     else:
                         results.append(worker(solve_instance, f, primal_bound, 
-                                              opts.timelimit, seed))
-                        
+                                              opts.strategy, opts.timelimit, seed))
+                    break
             break
                         
         
-        # Wait for the workers to get finish
+        # Wait for the workers to finish
         if opts.inst_parallel:
             results = [r.get() for r in results]
                 
@@ -113,11 +118,13 @@ def run(opts):
         results_dict = {}
         for d in results:
             results_dict.update(d)
-            
-        print(results_dict)
-            
+                        
         # Save results
         ofp = output_path / f"train/result_{consts.STRATEGY[opts.strategy]}.pkl"
+        pkl.dump(results_dict, open(ofp, 'wb'))
+        
+        # d = pkl.load(open(ofp, 'rb'))
+        # print(d)
 
 if __name__ == "__main__":    
     opts = get_options(sys.argv[1:])

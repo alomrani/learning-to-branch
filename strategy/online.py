@@ -7,7 +7,7 @@ import numpy as np
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
 from scipy.sparse import csr_matrix
-from utils import (apply_branch_history, disable_cuts, get_logging_callback,
+from utils import (apply_branch_history, get_logging_callback,
                    set_params, solve_as_lp)
 from sklearn.svm import SVC
 
@@ -133,9 +133,9 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
     def __call__(self):
         self.times_called += 1
-        if self.times_called == 1:
-            # print('* Disabling cuts after root node...')
-            disable_cuts(self.c)
+        # if self.times_called == 1:
+        #     # print('* Disabling cuts after root node...')
+        #     disable_cuts(self.c)
 
         # For all ML-based strategies, collect branching data for the first THETA nodes.
         # For the remaining nodes, select variables based on the trained ML model.
@@ -216,7 +216,9 @@ def solve_instance(path='set_cover.lp',
                    epsilon=params.EPSILON):                   
     # Read instance and set default parameters
     c = CPX.Cplex(path)
-    set_params(c, primal_bound=primal_bound, timelimit=timelimit, 
+    set_params(c, primal_bound=primal_bound, 
+               branch_strategy=branch_strategy,
+               timelimit=timelimit, 
                seed=seed, test=test)
 
     stat_feat = StaticFeaturizer(c)
