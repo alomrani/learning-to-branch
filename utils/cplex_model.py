@@ -1,5 +1,7 @@
-import consts
 import cplex.callbacks as CPX_CB
+
+import consts
+import params
 
 
 class LoggingCallback(CPX_CB.MIPInfoCallback):
@@ -10,32 +12,53 @@ class LoggingCallback(CPX_CB.MIPInfoCallback):
 
         self.total_time = self.get_time() - self.get_start_time()
 
-        
-def set_params(c, primal_bound=None, timelimit=None, seed=None, test=False):
+
+def get_logging_callback(c):
+    log_cb = c.register_callback(LoggingCallback)
+    log_cb.num_nodes = 0
+    log_cb.total_time = 0
+
+    return log_cb
+
+
+def set_params(c, primal_bound=None,
+               branch_strategy=None,
+               timelimit=None,
+               seed=None,
+               test=False):
+    if seed is not None:
+        c.parameters.randomseed.set(seed)
+
     # Single threaded
     c.parameters.threads.set(1)
 
     # Disable primal heuristics
     c.parameters.mip.strategy.heuristiceffort.set(0)
 
-    # Set the primal bound if provided    
+    # Disable presolve
+    c.parameters.preprocessing.presolve.set(0)
+
+    c.parameters.mip.tolerances.integrality.set(params.EPSILON)
+
+    c.parameters.mip.strategy.search.set(
+        c.parameters.mip.strategy.search.values.traditional)
+
+    # Set the primal bound if provided
     if primal_bound is not None:
         if c.objective.get_sense() == consts.MINIMIZE:
             c.parameters.mip.tolerances.lowercutoff.set(primal_bound)
         else:
             c.parameters.mip.tolerances.uppercutoff.set(primal_bound)
 
+    # Set timelimit if provided
     if timelimit is not None:
         c.parameters.timelimit.set(timelimit)
-        
-    if seed is not None:
-        c.parameters.randomseed.set(seed)
-        
-    if not test:
-        disable_output(c)
 
+    # Select from one of the default branching strategies
+    if branch_strategy == consts.BS_DEFAULT:
+        c.parameters.mip.strategy.variableselect.set(0)
 
-def disable_cuts(c):
+    # Disable cutting planes
     c.parameters.mip.limits.eachcutlimit.set(0)
     c.parameters.mip.cuts.bqp.set(-1)
     c.parameters.mip.cuts.cliques.set(-1)
@@ -53,6 +76,9 @@ def disable_cuts(c):
     c.parameters.mip.cuts.rlt.set(-1)
     c.parameters.mip.cuts.zerohalfcut.set(-1)
 
+    if not test:
+        disable_output(c)
+
 
 def disable_output(c):
     c.set_log_stream(None)
@@ -61,7 +87,7 @@ def disable_output(c):
     c.set_results_stream(None)
 
 
-def solve_as_lp(c, max_iterations=None):    
+def solve_as_lp(c, max_iterations=None):
     dual_values = None
     disable_output(c)
     c.set_problem_type(c.problem_type.LP)
@@ -70,7 +96,7 @@ def solve_as_lp(c, max_iterations=None):
         c.parameters.simplex.limits.iterations = max_iterations
 
     c.solve()
-    status = c.solution.get_status()    
+    status = c.solution.get_status()
     objective = c.solution.get_objective_value() if status == consts.OPTIMAL else consts.INFEASIBILITY
     # BUG: Access dual solution only if status is optimal or feasible
     dual_values = c.solution.get_dual_values() if status == consts.OPTIMAL else None
@@ -87,11 +113,8 @@ def apply_branch_history(c, branch_history):
             c.variables.set_lower_bounds(b_var, b_val)
         elif b_type == consts.UPPER_BOUND:
             c.variables.set_upper_bounds(b_var, b_val)
-            
 
-def get_logging_callback(c):    
-    log_cb = c.register_callback(LoggingCallback)
-    log_cb.num_nodes = 0
-    log_cb.total_time = 0
-    
-    return log_cb
+
+def create_default_branches(context):
+    for branch in range(context.get_num_branches()):
+        context.make_cplex_branch(branch)

@@ -1,15 +1,15 @@
 from operator import itemgetter
 
-import consts
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
+from sklearn.svm import SVC
+
+import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
-from scipy.sparse import csr_matrix
-from utils import (apply_branch_history, disable_cuts, get_logging_callback,
+from utils import (apply_branch_history, get_logging_callback,
                    set_params, solve_as_lp)
-from sklearn.svm import SVC
 
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
@@ -61,7 +61,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         return candidates, pc_scores
 
-
     def get_branch_solution(self, cclone, cand, bound_type):
         cand_val = self.get_values(cand)
 
@@ -94,12 +93,12 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         for cand in candidates:
             status_lower, lower_objective = self.get_branch_solution(cclone, cand, self.LOWER_BOUND)
             status_upper, upper_objective = self.get_branch_solution(cclone, cand, self.UPPER_BOUND)
-            
+
             delta_lower = max(lower_objective - parent_objval, self.EPSILON)
             delta_upper = max(upper_objective - parent_objval, self.EPSILON)
 
             sb_score = delta_lower * delta_upper
-            sb_scores.append(sb_score)            
+            sb_scores.append(sb_score)
 
             if status_lower != consts.OPTIMAL:
                 self.num_infeasible_left[cand] += 1
@@ -139,7 +138,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         # For all ML-based strategies, collect branching data for the first THETA nodes.
         # For the remaining nodes, select variables based on the trained ML model.
-        
+
         # Get branching candidates based on pseudo costs
         candidates, ps_scores = self.get_candidates()
         if len(candidates) == 0:
@@ -148,15 +147,15 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         # print(candidates)        
         # Collect branching data for training ML models
         branch_var = None
-        if self.times_called <= self.THETA:  
+        if self.times_called <= self.THETA:
             # print("* Collecting data")      
             # Calculate SB scores for branching candidates
             sb_scores = self.get_strong_branching_score(candidates)
             # print('* SB scores', sb_scores)
-            
-            branch_var = candidates[np.argmax(sb_scores)]            
+
+            branch_var = candidates[np.argmax(sb_scores)]
             # print(f'* Branch variable {branch_var}')
-            
+
             # Prepare training data
             dynamic = DynamicFeaturizer(self, candidates)
             # print('* Dynamic features shape', dynamic.features.shape)
@@ -202,7 +201,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         #     self.abort()
 
 
-def solve_instance(path='set_cover.lp',                   
+def solve_instance(path='set_cover.lp',
                    primal_bound=None,
                    timelimit=None,
                    seed=None,
@@ -213,10 +212,10 @@ def solve_instance(path='set_cover.lp',
                    theta=params.THETA,
                    k=params.K,
                    alpha=params.ALPHA,
-                   epsilon=params.EPSILON):                   
+                   epsilon=params.EPSILON):
     # Read instance and set default parameters
     c = CPX.Cplex(path)
-    set_params(c, primal_bound=primal_bound, timelimit=timelimit, 
+    set_params(c, primal_bound=primal_bound, timelimit=timelimit,
                seed=seed, test=test)
 
     stat_feat = StaticFeaturizer(c)
@@ -224,7 +223,7 @@ def solve_instance(path='set_cover.lp',
     var_idx_lst = c.variables.get_indices(var_lst)
 
     log_cb = get_logging_callback(c)
-    
+
     vsel_cb = c.register_callback(VariableSelectionCallback)
     vsel_cb.c = c
     vsel_cb.var_lst = var_lst

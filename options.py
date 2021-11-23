@@ -11,36 +11,34 @@ def get_options(args=None):
     parser = argparse.ArgumentParser(
         description="Options for learning to branch"
     )
-    
+
     parser.add_argument(
         "--mode",
-        type=int, 
-        default = consts.BRANCHING,
+        type=int,
+        default=consts.BRANCHING,
         help="Generate optimal solution or do branching"
     )
-    
+
     parser.add_argument(
         "--inst_parallel",
-        type=int, 
-        default = 0,
+        type=int,
+        default=0,
         help="Flag to control solving instances in parallel"
     )
-    
+
     parser.add_argument(
         "--num_workers",
-        type=int, 
-        default = 4,
+        type=int,
+        default=4,
         help="Number of parallel workers. Used when inst_parallel is 1"
     )
-    
+
     parser.add_argument(
         "--timelimit",
-        type=int, 
-        default = 600,
+        type=int,
+        default=600,
         help="Solver timelimit in seconds"
     )
-    
-    
 
     # Training
 
@@ -106,7 +104,6 @@ def get_options(args=None):
         help="Save checkpoint every n epochs (default 1), 0 to save no checkpoints",
     )
 
-
     parser.add_argument(
         "--save_dir", help="Path to save the checkpoints",
     )
@@ -118,8 +115,6 @@ def get_options(args=None):
         default=consts.BS_DEFAULT
     )
 
-
-
     opts = parser.parse_args(args)
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
     if opts.use_cuda:
@@ -130,9 +125,7 @@ def get_options(args=None):
     opts.run_name = "{}_{}".format("run", time.strftime("%Y%m%dT%H%M%S"))
     opts.save_dir = os.path.join(opts.output_dir, opts.run_name)
     assert (
-        opts.dataset_size % opts.batch_size == 0
+            opts.dataset_size % opts.batch_size == 0
     ), "Epoch size must be integer multiple of batch size!"
 
     return opts
-    
-    
