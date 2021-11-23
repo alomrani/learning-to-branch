@@ -1,4 +1,6 @@
+import cplex as CPX
 import cplex.callbacks as CPX_CB
+import numpy as np
 
 import consts
 import params
@@ -87,20 +89,52 @@ def disable_output(c):
     c.set_results_stream(None)
 
 
-def solve_as_lp(c, max_iterations=None):
-    dual_values = None
+def create_default_branches(context):
+    for branch in range(context.get_num_branches()):
+        context.make_cplex_branch(branch)
+
+
+def solve_as_lp(c, max_iterations=50):
     disable_output(c)
+    # Create LP for the input MIP
     c.set_problem_type(c.problem_type.LP)
     # Set the maximum number of iterations for solving the LP
     if max_iterations is not None:
         c.parameters.simplex.limits.iterations = max_iterations
 
     c.solve()
+    status, objective, dual_values = None, None, None
+
     status = c.solution.get_status()
-    objective = c.solution.get_objective_value() if status == consts.OPTIMAL else consts.INFEASIBILITY
-    # BUG: Access dual solution only if status is optimal or feasible
-    dual_values = c.solution.get_dual_values() if status == consts.OPTIMAL else None
+    if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
+        objective = c.solution.get_objective_value()
+        dual_values = c.solution.get_dual_values()
+
     return status, objective, dual_values
+
+
+def get_branch_solution(context, cclone, cand, bound_type):
+    cand_val = context.get_values(cand)
+
+    get_bounds = None
+    set_bounds = None
+    new_bound = None
+    if bound_type == consts.LOWER_BOUND:
+        get_bounds = context.get_lower_bounds
+        set_bounds = cclone.variables.set_lower_bounds
+        new_bound = np.floor(cand_val) + 1
+    elif bound_type == consts.UPPER_BOUND:
+        get_bounds = context.get_upper_bounds
+        set_bounds = cclone.variables.set_upper_bounds
+        new_bound = np.floor(cand_val)
+
+    original_bound = get_bounds(cand)
+
+    set_bounds(cand, new_bound)
+    status, objective, _ = solve_as_lp(cclone, max_iterations=50)
+    set_bounds(cand, original_bound)
+
+    return status, objective
 
 
 def apply_branch_history(c, branch_history):
@@ -115,6 +149,38 @@ def apply_branch_history(c, branch_history):
             c.variables.set_upper_bounds(b_var, b_val)
 
 
-def create_default_branches(context):
-    for branch in range(context.get_num_branches()):
-        context.make_cplex_branch(branch)
+def get_data(context):
+    node_data = context.get_node_data()
+    if node_data is None:
+        node_data = {'branch_history': []}
+
+    return node_data
+
+
+def get_clone(context):
+    cclone = CPX.Cplex(context.c)
+
+    node_data = get_data(context)
+    apply_branch_history(cclone, node_data['branch_history'])
+
+    return cclone
+
+
+def get_candidates(pseudocosts, values):
+    up_frac, down_frac = np.ceil(values) - values, values - np.floor(values)
+
+    scores = [uf * df * pc[0] * pc[1] for pc, uf, df in zip(pseudocosts,
+                                                            up_frac,
+                                                            down_frac)]
+    variables = sorted(range(len(scores)), key=lambda idx: -scores[idx])
+
+    candidates = []
+    for i in variables:
+        if len(candidates) == params.K:
+            break
+
+        value = values[i]
+        if abs(value - round(value)) > params.EPSILON:
+            candidates.append(i)
+
+    return candidates

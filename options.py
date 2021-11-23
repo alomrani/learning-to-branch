@@ -112,7 +112,7 @@ def get_options(args=None):
         "--strategy",
         help="Branching strategy for solving mip",
         type=int,
-        default=consts.BS_DEFAULT
+        default=consts.BS_PC
     )
 
     opts = parser.parse_args(args)

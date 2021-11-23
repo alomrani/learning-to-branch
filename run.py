@@ -99,7 +99,7 @@ def run(opts):
                     else:
                         results.append(worker(solve_instance, f, primal_bound,
                                               opts.timelimit, seed))
-                    break
+                    
             break
 
         # Wait for the workers to get finish

@@ -8,31 +8,11 @@ from sklearn.svm import SVC
 import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
-from utils import (apply_branch_history, get_logging_callback,
+from utils import (get_branch_solution, get_clone, get_data, get_logging_callback,
                    set_params, solve_as_lp)
 
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
-    def create_default_branches(self):
-        for branch in range(self.get_num_branches()):
-            self.make_cplex_branch(branch)
-
-    def get_data(self):
-        node_data = self.get_node_data()
-        if node_data is None:
-            node_data = {}
-            node_data['branch_history'] = []
-
-        return node_data
-
-    def get_clone(self):
-        cclone = CPX.Cplex(self.c)
-
-        node_data = self.get_data()
-        apply_branch_history(cclone, node_data['branch_history'])
-
-        return cclone
-
     def get_pseudocosts_score(self, pseudocosts, soln, floor_soln, ceil_soln):
         """Assumption: p[0] == Down pseudocost, p[1] == Up pseudocost"""
         pseudocosts_score = [0] * len(pseudocosts)
@@ -61,41 +41,18 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         return candidates, pc_scores
 
-    def get_branch_solution(self, cclone, cand, bound_type):
-        cand_val = self.get_values(cand)
-
-        get_bounds = None
-        set_bounds = None
-        new_bound = None
-        if bound_type == self.LOWER_BOUND:
-            get_bounds = self.get_lower_bounds
-            set_bounds = cclone.variables.set_lower_bounds
-            new_bound = np.floor(cand_val) + 1
-        elif bound_type == self.UPPER_BOUND:
-            get_bounds = self.get_upper_bounds
-            set_bounds = cclone.variables.set_upper_bounds
-            new_bound = np.floor(cand_val)
-
-        original_bound = get_bounds(cand)
-
-        set_bounds(cand, new_bound)
-        status, objective, _ = solve_as_lp(cclone, max_iterations=50)
-        set_bounds(cand, original_bound)
-
-        return status, objective
-
     def get_strong_branching_score(self, candidates):
-        cclone = self.get_clone()
+        cclone = get_clone(self)
         status, parent_objval, dual_values = solve_as_lp(cclone)
 
         self.curr_node_dual_values = np.array(dual_values)
         sb_scores = []
         for cand in candidates:
-            status_lower, lower_objective = self.get_branch_solution(cclone, cand, self.LOWER_BOUND)
-            status_upper, upper_objective = self.get_branch_solution(cclone, cand, self.UPPER_BOUND)
+            status_lower, lower_objective = get_branch_solution(self, cclone, cand, consts.LOWER_BOUND)
+            status_upper, upper_objective = get_branch_solution(self, cclone, cand, consts.UPPER_BOUND)
 
-            delta_lower = max(lower_objective - parent_objval, self.EPSILON)
-            delta_upper = max(upper_objective - parent_objval, self.EPSILON)
+            delta_lower = max(lower_objective - parent_objval, params.EPSILON)
+            delta_upper = max(upper_objective - parent_objval, params.EPSILON)
 
             sb_score = delta_lower * delta_upper
             sb_scores.append(sb_score)
@@ -132,9 +89,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
     def __call__(self):
         self.times_called += 1
-        if self.times_called == 1:
-            # print('* Disabling cuts after root node...')
-            disable_cuts(self.c)
 
         # For all ML-based strategies, collect branching data for the first THETA nodes.
         # For the remaining nodes, select variables based on the trained ML model.
@@ -171,7 +125,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         else:
             # print("* using ML model")      
-            cclone = self.get_clone()
+            cclone = get_clone(self)
             # Must be calculated in order to obtain dual prices (dual costs/shadow prices)
             status, parent_objval, dual_values = solve_as_lp(cclone)
             self.curr_node_dual_values = np.array(dual_values)
@@ -186,7 +140,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         assert branch_var is not None
         branch_val = self.get_values(branch_var)
         objval = self.get_objective_value()
-        node_data = self.get_data()
+        node_data = get_data(self)
         branches = [(branch_var, self.LOWER_BOUND, np.floor(branch_val) + 1),
                     (branch_var, self.UPPER_BOUND, np.floor(branch_val))]
 
