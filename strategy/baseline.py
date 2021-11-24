@@ -87,5 +87,5 @@ def solve_instance(path='set_cover.lp',
 
     # Solve the instance and save stats
     c.solve()
-
+    print(vsel_cb.times_called)
     return c, log_cb

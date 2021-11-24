@@ -96,7 +96,7 @@ def run(opts):
                                                               primal_bound,
                                                               opts.strategy,
                                                               opts.timelimit,
-                                                              seed,)))
+                                                              seed, opts)))
                     else:
                         results.append(worker(solve_instance, f, primal_bound, opts.strategy,
                                               opts.timelimit, seed))
