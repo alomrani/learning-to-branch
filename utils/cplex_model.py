@@ -31,6 +31,10 @@ def set_params(c, primal_bound=None,
     if seed is not None:
         c.parameters.randomseed.set(seed)
 
+    # Select from one of the default branching strategies
+    if branch_strategy == consts.BS_DEFAULT:
+        c.parameters.mip.strategy.variableselect.set(0)
+
     # Single threaded
     c.parameters.threads.set(1)
 
@@ -55,10 +59,6 @@ def set_params(c, primal_bound=None,
     # Set timelimit if provided
     if timelimit is not None:
         c.parameters.timelimit.set(timelimit)
-
-    # Select from one of the default branching strategies
-    if branch_strategy == consts.BS_DEFAULT:
-        c.parameters.mip.strategy.variableselect.set(0)
 
     # Disable cutting planes
     c.parameters.mip.limits.eachcutlimit.set(0)
@@ -94,7 +94,7 @@ def create_default_branches(context):
         context.make_cplex_branch(branch)
 
 
-def solve_as_lp(c, max_iterations=50):
+def solve_as_lp(c, max_iterations=None):
     disable_output(c)
     # Create LP for the input MIP
     c.set_problem_type(c.problem_type.LP)
@@ -103,7 +103,7 @@ def solve_as_lp(c, max_iterations=50):
         c.parameters.simplex.limits.iterations = max_iterations
 
     c.solve()
-    status, objective, dual_values = None, None, None
+    status, objective, dual_values = None, 1e6, None
 
     status = c.solution.get_status()
     if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
@@ -167,12 +167,11 @@ def get_clone(context):
 
 
 def get_candidates(pseudocosts, values):
-    up_frac, down_frac = np.ceil(values) - values, values - np.floor(values)
+    up_frac = np.ceil(values) - values
+    down_frac = values - np.floor(values)
 
-    scores = [uf * df * pc[0] * pc[1] for pc, uf, df in zip(pseudocosts,
-                                                            up_frac,
-                                                            down_frac)]
-    variables = sorted(range(len(scores)), key=lambda idx: -scores[idx])
+    scores = [uf * df * pseudocost[0] * pseudocost[1] for pseudocost, uf, df in zip(pseudocosts, up_frac, down_frac)]
+    variables = sorted(range(len(scores)), key=lambda i: -scores[i])
 
     candidates = []
     for i in variables:
@@ -180,7 +179,7 @@ def get_candidates(pseudocosts, values):
             break
 
         value = values[i]
-        if abs(value - round(value)) > params.EPSILON:
+        if not abs(value - round(value)) <= params.EPSILON:
             candidates.append(i)
 
     return candidates
