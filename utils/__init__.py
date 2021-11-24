@@ -5,5 +5,6 @@ from utils.cplex_model import get_candidates
 from utils.cplex_model import get_clone
 from utils.cplex_model import get_data
 from utils.cplex_model import get_logging_callback
+from utils.cplex_model import get_sb_scores
 from utils.cplex_model import set_params
 from utils.cplex_model import solve_as_lp

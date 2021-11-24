@@ -103,7 +103,7 @@ def solve_as_lp(c, max_iterations=None):
         c.parameters.simplex.limits.iterations = max_iterations
 
     c.solve()
-    status, objective, dual_values = None, 1e6, None
+    status, objective, dual_values = None, None, None
 
     status = c.solution.get_status()
     if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
@@ -113,8 +113,8 @@ def solve_as_lp(c, max_iterations=None):
     return status, objective, dual_values
 
 
-def get_branch_solution(context, cclone, cand, bound_type):
-    cand_val = context.get_values(cand)
+def get_branch_solution(context, cclone, var, bound_type):
+    value = context.get_values(var)
 
     get_bounds = None
     set_bounds = None
@@ -122,19 +122,43 @@ def get_branch_solution(context, cclone, cand, bound_type):
     if bound_type == consts.LOWER_BOUND:
         get_bounds = context.get_lower_bounds
         set_bounds = cclone.variables.set_lower_bounds
-        new_bound = np.floor(cand_val) + 1
+        new_bound = np.floor(value) + 1
     elif bound_type == consts.UPPER_BOUND:
         get_bounds = context.get_upper_bounds
         set_bounds = cclone.variables.set_upper_bounds
-        new_bound = np.floor(cand_val)
+        new_bound = np.floor(value)
 
-    original_bound = get_bounds(cand)
+    original_bound = get_bounds(var)
 
-    set_bounds(cand, new_bound)
-    status, objective, _ = solve_as_lp(cclone, max_iterations=50)
-    set_bounds(cand, original_bound)
+    set_bounds(var, new_bound)
+    status, objective, _ = solve_as_lp(cclone)
+    set_bounds(var, original_bound)
 
     return status, objective
+
+
+# def get_branch_solution(context, cclone, cand, bound_type):
+#     cand_val = context.get_values(cand)
+#
+#     get_bounds = None
+#     set_bounds = None
+#     new_bound = None
+#     if bound_type == consts.LOWER_BOUND:
+#         get_bounds = context.get_lower_bounds
+#         set_bounds = cclone.variables.set_lower_bounds
+#         new_bound = np.floor(cand_val) + 1
+#     elif bound_type == consts.UPPER_BOUND:
+#         get_bounds = context.get_upper_bounds
+#         set_bounds = cclone.variables.set_upper_bounds
+#         new_bound = np.floor(cand_val)
+#
+#     original_bound = get_bounds(cand)
+#
+#     set_bounds(cand, new_bound)
+#     status, objective, _ = solve_as_lp(cclone, max_iterations=50)
+#     set_bounds(cand, original_bound)
+#
+#     return status, objective
 
 
 def apply_branch_history(c, branch_history):
@@ -186,3 +210,35 @@ def get_candidates(pseudocosts, values, branch_strategy):
             candidates.append(i)
 
     return candidates
+
+
+def get_sb_scores(context, candidates):
+    cclone = get_clone(context)
+    status, parent_objective, dual_values = solve_as_lp(cclone)
+
+    sb_scores = []
+    if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
+        for var in candidates:
+            upper_status, upper_objective = get_branch_solution(context, cclone, var, consts.LOWER_BOUND)
+            lower_status, lower_objective = get_branch_solution(context, cclone, var, consts.UPPER_BOUND)
+
+            # Infeasibility leads to higher score as it helps in pruning the tree
+            if upper_status == consts.LP_INFEASIBLE:
+                upper_objective = consts.INFEASIBILITY_SCORE
+                context.num_infeasible_right[var] += 1
+            if lower_status == consts.LP_INFEASIBLE:
+                lower_objective = consts.INFEASIBILITY_SCORE
+                context.num_infeasible_left[var] += 1
+
+            # Calculate deltas
+            delta_upper = max(upper_objective - parent_objective, params.EPSILON)
+            delta_lower = max(lower_objective - parent_objective, params.EPSILON)
+
+            # Calculate sb score
+            sb_score = delta_lower * delta_upper
+            sb_scores.append(sb_score)
+
+    else:
+        print("Root LP infeasible...")
+
+    return sb_scores

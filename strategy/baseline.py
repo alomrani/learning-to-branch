@@ -7,6 +7,7 @@ import params
 from utils import get_candidates
 from utils import get_data
 from utils import get_logging_callback
+from utils import get_sb_scores
 from utils import set_params
 
 
@@ -24,22 +25,36 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         if len(candidates) == 0:
             return
 
-        if self.branch_strategy == consts.BS_PC:
+        branching_var = None
+        # Strong branching
+        if self.branch_strategy == consts.BS_SB or (
+                self.branch_strategy == consts.BS_SB_PC and self.times_called <= params.THETA):
+            sb_scores = get_sb_scores(self, candidates)
+            if len(sb_scores):
+                sb_scores = np.asarray(sb_scores)
+                branching_var = candidates[np.argmax(sb_scores)]
+        # Pseudocode branching
+        elif self.branch_strategy == consts.BS_PC or (
+                self.branch_strategy == consts.BS_SB_PC and self.times_called > params.THETA):
             branching_var = candidates[0]
-            branching_val = self.get_values(branching_var)
-            obj_val = self.get_objective_value()
 
-            node_data = get_data(self)
+        if branching_var is None:
+            return
 
-            branches = [(branching_var, consts.LOWER_BOUND, np.floor(branching_val) + 1),
-                        (branching_var, consts.UPPER_BOUND, np.floor(branching_val))]
+        branching_val = self.get_values(branching_var)
+        obj_val = self.get_objective_value()
 
-            for branch in branches:
-                node_data_clone = node_data.copy()
-                node_data_clone['branch_history'] = node_data['branch_history'][:]
-                node_data_clone['branch_history'].append(branch)
+        node_data = get_data(self)
 
-                self.make_branch(obj_val, variables=[branch], constraints=[], node_data=node_data_clone)
+        branches = [(branching_var, consts.LOWER_BOUND, np.floor(branching_val) + 1),
+                    (branching_var, consts.UPPER_BOUND, np.floor(branching_val))]
+
+        for branch in branches:
+            node_data_clone = node_data.copy()
+            node_data_clone['branch_history'] = node_data['branch_history'][:]
+            node_data_clone['branch_history'].append(branch)
+
+            self.make_branch(obj_val, variables=[branch], constraints=[], node_data=node_data_clone)
 
         # if self.times_called == 5:
         #     self.abort()
