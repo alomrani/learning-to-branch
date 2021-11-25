@@ -58,13 +58,16 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         #     self.abort()
 
 
-def solve_instance(path='set_cover.lp',
-                   primal_bound=None,
-                   timelimit=None,
-                   seed=None,
-                   test=True,
-                   branch_strategy=consts.BS_PC,
-                   theta=params.THETA):
+def solve_instance(
+    path='set_cover.lp',
+    primal_bound=None,
+    timelimit=None,
+    seed=None,
+    test=True,
+    branch_strategy=consts.BS_PC,
+    theta=params.THETA,
+    warm_start_model=None
+):
     # Read instance and set default parameters
     c = CPX.Cplex(path)
     np.random.seed(seed)
@@ -86,5 +89,4 @@ def solve_instance(path='set_cover.lp',
 
     # Solve the instance and save stats
     c.solve()
-    print(vsel_cb.times_called)
-    return c, log_cb
+    return c, log_cb, None

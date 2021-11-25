@@ -1,4 +1,5 @@
 from operator import itemgetter
+from platform import node
 import time
 
 import cplex as CPX
@@ -6,7 +7,7 @@ import cplex.callbacks as CPX_CB
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.utils.multiclass import check_classification_targets
-from sklearn.neural_network import MLPClassifier
+from models.MLPClassifier import MLPClassifier1 as MLPClassifier
 import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
@@ -78,16 +79,14 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         node_feat = self.node_feat.reshape((self.THETA, self.K, 72))
         max_feat = np.argmax(node_feat, axis=1)[:, None, :]
         node_feat = node_feat / (max_feat + (max_feat == 0).astype(int))
-        node_feat = node_feat.reshape((self.THETA * self.K, 72))
-        labels = labels.reshape(-1)
-        for i in range(len(labels)):
-            for j in range(i, len(labels)):
-                if i != j and labels[i] != labels[j] and i // self.K == j // self.K:
-                    feature_diff.append(node_feat[i] - node_feat[j])
-                    bipartite_rank_labels.append(labels[i] - labels[j])
-                    feature_diff.append(-(node_feat[i] - node_feat[j]))
-                    bipartite_rank_labels.append(-(labels[i] - labels[j]))
-
+        for i in range(self.THETA):
+            for j in range(self.K):
+                for k in range(j, self.K):
+                    if j != k and labels[i, j] != labels[i, k]:
+                        feature_diff.append(node_feat[i, j] - node_feat[i, k])
+                        bipartite_rank_labels.append(labels[i, j] - labels[i, k])
+                        feature_diff.append(-(node_feat[i, j] - node_feat[i, k]))
+                        bipartite_rank_labels.append(-(labels[i, j] - labels[i, k]))
         return np.asarray(feature_diff), np.asarray(bipartite_rank_labels)
 
     def __call__(self):
@@ -129,12 +128,10 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                 print("* Making dataset")
                 feat_diff, rank_labels = self.bipartite_ranking(self.labels)
                 if self.strategy == consts.BS_SB_ML_SVMRank:
-                    self.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='linear')
                     print("* Training Model")
                     self.model = self.model.fit(feat_diff, rank_labels)
                     print("* Done")
                 elif self.strategy == consts.BS_SB_ML_NN:
-                    self.model = MLPClassifier(verbose=True, learning_rate_init=0.01, n_iter_no_change=20, max_iter=300)
                     print("* Training Model")
                     self.model = self.model.fit(feat_diff, rank_labels)
                     print("* Done")
@@ -182,7 +179,8 @@ def solve_instance(path='set_cover.lp',
                    theta=params.THETA,
                    k=params.K,
                    alpha=params.ALPHA,
-                   epsilon=params.EPSILON):
+                   epsilon=params.EPSILON,
+                   warm_start_model=None):
     # Read instance and set default parameters
     np.random.seed(seed)
     c = CPX.Cplex(path)
@@ -212,9 +210,13 @@ def solve_instance(path='set_cover.lp',
     vsel_cb.num_infeasible_right = np.zeros(len(var_idx_lst))
     vsel_cb.node_feat = []
     vsel_cb.labels = []
-    vsel_cb.model = None
-
+    if warm_start_model is not None:
+        vsel_cb.model = warm_start_model
+    elif branch_strategy == consts.BS_SB_ML_SVMRank:
+        vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='linear')
+    elif branch_strategy == consts.BS_SB_ML_NN:
+        vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=50, max_iter=300, warm_start=True)
     # Solve the instance and save stats
     c.solve()
 
-    return c, log_cb
+    return c, log_cb, vsel_cb.model

@@ -5,7 +5,7 @@ import time
 import torch
 
 import consts
-
+import params
 
 def get_options(args=None):
     parser = argparse.ArgumentParser(
@@ -113,6 +113,30 @@ def get_options(args=None):
         help="Branching strategy for solving mip",
         type=int,
         default=consts.BS_PC
+    )
+    parser.add_argument(
+        "--theta",
+        help="Number of data samples collected while training meta model",
+        type=int,
+        default=params.THETA
+    )
+    parser.add_argument(
+        "--theta2",
+        help="Number of data samples collected after warm-starting with meta model",
+        type=int,
+        default=params.THETA2
+    )
+    parser.add_argument(
+        "--warm_start",
+        help="warm_start setting: -1: use saved warm-start model, 0: no warm-start, 1: averaging, 2: incremental training",
+        type=int,
+        default=consts.NONE
+    )
+    parser.add_argument(
+        "--beta",
+        help="Number of instances used for training meta-model",
+        type=int,
+        default=consts.BETA
     )
 
     opts = parser.parse_args(args)
