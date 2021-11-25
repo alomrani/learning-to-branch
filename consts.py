@@ -38,3 +38,19 @@ STRATEGY = [
     'FEEDFORWARD NEURAL NETWORK',
     'GRAPH NEURAL NETWORK'
 ]
+
+
+NONE = 0
+USE_SAVED = 1
+AVERAGE_MODEL = 2
+INCREMENTAL_WARM_START = 3
+
+WARM_START = [
+    'NONE',
+    'USE_SAVED',
+    'AVERAGE_MODEL',
+    'INCREMENTAL_WARM_START'
+]
+BETA = 2  # Number of instances to solve before warm-starting
+
+
