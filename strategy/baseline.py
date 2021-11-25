@@ -1,7 +1,6 @@
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
-from sklearn.utils.multiclass import check_classification_targets
 
 import consts
 import params
@@ -87,5 +86,4 @@ def solve_instance(path='set_cover.lp',
 
     # Solve the instance and save stats
     c.solve()
-    print(vsel_cb.times_called)
     return c, log_cb

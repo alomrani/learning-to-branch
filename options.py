@@ -41,7 +41,6 @@ def get_options(args=None):
     )
 
     # Training
-
     parser.add_argument(
         "--batch_size",
         type=int,
@@ -54,7 +53,6 @@ def get_options(args=None):
         default=1000.,
         help="Number of instances used for reporting validation performance",
     )
-
     parser.add_argument(
         "--val_dataset",
         type=str,
@@ -113,6 +111,20 @@ def get_options(args=None):
         help="Branching strategy for solving mip",
         type=int,
         default=consts.BS_PC
+    )
+
+    parser.add_argument(
+        "--instance",
+        help="Path to instance lp file",
+        type=str,
+        default="/scratch/rahulpat/setcover/train/1000_1000/1000_1000_0.lp"
+    )
+
+    parser.add_argument(
+        "--seed",
+        help="Seed for CPLEX",
+        type=int,
+        default=3
     )
 
     opts = parser.parse_args(args)
