@@ -6,7 +6,7 @@ import cplex.callbacks as CPX_CB
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.utils.multiclass import check_classification_targets
-
+from sklearn.neural_network import MLPClassifier
 import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
@@ -126,15 +126,18 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                 self.labels = np.concatenate((self.labels, self.candidate_labels(sb_scores)[None, :]), axis=0)
             if self.times_called == self.THETA:
                 # Train model
+                print("* Making dataset")
+                feat_diff, rank_labels = self.bipartite_ranking(self.labels)
                 if self.strategy == consts.BS_SB_ML_SVMRank:
-                    print("* Making dataset")
-                    feat_diff, rank_labels = self.bipartite_ranking(self.labels)
                     self.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='linear')
-                    # self.model = SVC()
                     print("* Training Model")
-                    self.model.fit(feat_diff, rank_labels)
+                    self.model = self.model.fit(feat_diff, rank_labels)
                     print("* Done")
-
+                elif self.strategy == consts.BS_SB_ML_NN:
+                    self.model = MLPClassifier(verbose=True, learning_rate_init=0.01, n_iter_no_change=20, max_iter=300)
+                    print("* Training Model")
+                    self.model = self.model.fit(feat_diff, rank_labels)
+                    print("* Done")
 
         else:
             # print("* using ML model")
