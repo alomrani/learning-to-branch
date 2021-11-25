@@ -6,10 +6,11 @@ import cplex.callbacks as CPX_CB
 import numpy as np
 from sklearn.svm import SVC
 from sklearn.utils.multiclass import check_classification_targets
-
+from sklearn.neural_network import MLPClassifier
 import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
+import strategy
 from utils import (get_branch_solution, get_clone, get_data, get_logging_callback,
                    set_params, solve_as_lp, get_sb_scores, get_candidates)
 
@@ -74,10 +75,11 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
     def bipartite_ranking(self, labels):
         bipartite_rank_labels = []
         feature_diff = []
-        node_feat = np.asarray(self.node_feat).reshape((self.THETA, self.K, -1))
+        node_feat = self.node_feat.reshape((self.THETA, self.K, 72))
         max_feat = np.argmax(node_feat, axis=1)[:, None, :]
         node_feat = node_feat / (max_feat + (max_feat == 0).astype(int))
-        node_feat = node_feat.reshape((self.THETA * self.K, -1))
+        node_feat = node_feat.reshape((self.THETA * self.K, 72))
+        labels = labels.reshape(-1)
         for i in range(len(labels)):
             for j in range(i, len(labels)):
                 if i != j and labels[i] != labels[j] and i // self.K == j // self.K:
@@ -95,7 +97,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         # Get branching candidates based on pseudo costs
         # candidates, ps_scores = self.get_candidates()
-
         pseudocosts = self.get_pseudo_costs()
         values = self.get_values()
         candidates = get_candidates(pseudocosts, values, self.strategy)
@@ -116,19 +117,27 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
             # Prepare training data
             dynamic = DynamicFeaturizer(self, candidates, cclone)
-            self.node_feat += dynamic.features.tolist()
-            self.labels += self.candidate_labels(sb_scores).tolist()
+            dynamic.features = np.asarray(dynamic.features)
+            if type(self.node_feat) is list:
+                self.node_feat = dynamic.features[None, :, :]
+                self.labels = self.candidate_labels(sb_scores)[None, :]
+            else:
+                self.node_feat = np.concatenate((self.node_feat, dynamic.features[None, :, :]), axis=0)
+                self.labels = np.concatenate((self.labels, self.candidate_labels(sb_scores)[None, :]), axis=0)
             if self.times_called == self.THETA:
                 # Train model
+                print("* Making dataset")
+                feat_diff, rank_labels = self.bipartite_ranking(self.labels)
                 if self.strategy == consts.BS_SB_ML_SVMRank:
-                    print("* Making dataset")
-                    feat_diff, rank_labels = self.bipartite_ranking(self.labels)
-                    # self.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='linear')
-                    self.model = SVC()
+                    self.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='linear')
                     print("* Training Model")
-                    self.model.fit(feat_diff, rank_labels)
+                    self.model = self.model.fit(feat_diff, rank_labels)
                     print("* Done")
-
+                elif self.strategy == consts.BS_SB_ML_NN:
+                    self.model = MLPClassifier(verbose=True, learning_rate_init=0.01, n_iter_no_change=20, max_iter=300)
+                    print("* Training Model")
+                    self.model = self.model.fit(feat_diff, rank_labels)
+                    print("* Done")
 
         else:
             # print("* using ML model")
@@ -136,7 +145,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             # Must be calculated in order to obtain dual prices (dual costs/shadow prices)
             K = len(candidates)
             status, parent_objval, dual_values = solve_as_lp(cclone)
-            self.curr_node_dual_values = np.array(dual_values)
+            self.curr_node_dual_values = np.asarray(dual_values)
             dfobj = DynamicFeaturizer(self, candidates, cclone)
             dfobj.features = np.asarray(dfobj.features)
             max_feat = dfobj.features.argmax(axis=0)
@@ -144,7 +153,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             X = (np.repeat(dfobj.features[:, None, :], len(dfobj.features), axis=1) - dfobj.features[None, :, :])
             out = self.model.predict(np.reshape(X, (K ** 2, 72))).reshape((K, K, 1))
             branch_var = candidates[np.argmax(out.sum(axis=1), axis=0).item()]
-
         assert branch_var is not None
         branch_val = self.get_values(branch_var)
         objval = self.get_objective_value()
@@ -176,6 +184,7 @@ def solve_instance(path='set_cover.lp',
                    alpha=params.ALPHA,
                    epsilon=params.EPSILON):
     # Read instance and set default parameters
+    np.random.seed(seed)
     c = CPX.Cplex(path)
     set_params(c, primal_bound=primal_bound, timelimit=timelimit,
                seed=seed, test=test, branch_strategy=branch_strategy)

@@ -1,7 +1,8 @@
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
-
+from sklearn.utils.multiclass import check_classification_targets
+import time
 import consts
 import params
 from utils import get_candidates
@@ -16,7 +17,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         if self.branch_strategy == consts.BS_DEFAULT:
             return
-
         # Find candidates for branching
         pseudocosts = self.get_pseudo_costs()
         values = self.get_values()
@@ -39,7 +39,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         if branching_var is None:
             return
-
         branching_val = self.get_values(branching_var)
         obj_val = self.get_objective_value()
 
@@ -68,6 +67,7 @@ def solve_instance(path='set_cover.lp',
                    theta=params.THETA):
     # Read instance and set default parameters
     c = CPX.Cplex(path)
+    np.random.seed(seed)
     set_params(c, primal_bound=primal_bound, timelimit=timelimit,
                branch_strategy=branch_strategy, seed=seed, test=test)
 
