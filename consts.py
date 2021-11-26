@@ -27,18 +27,14 @@ BS_SB = 1
 BS_PC = 2
 BS_SB_PC = 3
 BS_SB_ML_SVMRank = 4
-BS_SB_ML_LR = 5
-BS_SB_ML_NN = 6
-BS_SB_ML_GNN = 7
+BS_SB_ML_NN = 5
 STRATEGY = [
     'DEFAULT',
     'SB',
     'PS',
     'SB_PS',
     'SB_SVM_RANK',
-    'SB_LR',
     'SB_FFNN',
-    'SB_GNN'
 ]
 
 
@@ -51,6 +47,7 @@ WARM_START = [
     'AVERAGE_MODEL',
     'INCREMENTAL_WARM_START'
 ]
-BETA = 2  # Number of instances to solve before warm-starting
+BETA = -1  # Number of instances to solve before warm-starting
+
 
 

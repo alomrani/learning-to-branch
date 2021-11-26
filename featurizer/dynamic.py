@@ -4,6 +4,8 @@ import time
 import numpy as np
 from scipy.sparse import csr_matrix
 
+import featurizer
+
 
 class DynamicFeaturizer:
     def __init__(self, branch_instance, candidates, cclone):
@@ -57,6 +59,8 @@ class DynamicFeaturizer:
 
         self.features = np.c_[
             self.features, num_lower_infeasible, num_upper_infeasible, fraction_infeasible_lower, fraction_infeasible_upper]
+        
+        # print(self.features.shape)
         # Part 4: Stats. for constraint degrees
         not_set_variables = (np.asarray(cclone.variables.get_lower_bounds()) != np.asarray(cclone.variables.get_upper_bounds()))
         self.matrix = static_features.matrix.multiply(csr_matrix(not_set_variables[None, :]))
@@ -92,6 +96,7 @@ class DynamicFeaturizer:
         self.features = np.c_[
             self.features, mean_degrees, std_degrees, min_degrees, max_degrees, mean_degrees_ratio, min_degrees_ratio, max_degrees_ratio]
 
+        # print(self.features.shape)
         # Part 5: Min/max ratios of constraint coeffs to RHS
         rhs = static_features.rhs.reshape(-1, 1)
         pos_rhs = rhs[rhs > 0]
@@ -114,7 +119,7 @@ class DynamicFeaturizer:
 
         # 10. Max ratio for negative RHS
         max_ratio_neg = np.transpose(np.max(neg_ratio_matrix, axis=0))
-
+        # print(self.features.shape)
         # Add 7, 8, 9, 10 to features
         self.features = np.c_[self.features, min_ratio_pos, max_ratio_pos, min_ratio_neg, max_ratio_neg]
         # print('1, 2, 5', self.features.shape)
@@ -226,4 +231,5 @@ class DynamicFeaturizer:
             dual_max,
             dual_count
         ]
+
 

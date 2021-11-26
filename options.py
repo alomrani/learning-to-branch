@@ -40,33 +40,10 @@ def get_options(args=None):
         help="Solver timelimit in seconds"
     )
 
-    # Training
+
+
     parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=100,
-        help="Number of instances per batch during training",
-    )
-    parser.add_argument(
-        "--val_size",
-        type=float,
-        default=1000.,
-        help="Number of instances used for reporting validation performance",
-    )
-    parser.add_argument(
-        "--val_dataset",
-        type=str,
-        default="datasets/val.pt",
-        help="Dataset file to use for validation",
-    )
-    parser.add_argument(
-        "--test_dataset",
-        type=str,
-        default="datasets/test.pt",
-        help="Dataset file to use for testing",
-    )
-    parser.add_argument(
-        "--train_dataset",
+        "--dataset",
         type=str,
         default="./data/train",
         help="Folder containing lp files of training instances",
@@ -85,25 +62,9 @@ def get_options(args=None):
         "--lr_decay", type=float, default=1.0, help="Learning rate decay per epoch"
     )
     # Misc
-    parser.add_argument(
-        "--tune",
-        action="store_true",
-        help="Set this to true if you want to tune the hyperparameters",
-    )
 
     parser.add_argument(
         "--output_dir", default="./outputs", help="Directory to write model outputs to"
-    )
-
-    parser.add_argument(
-        "--checkpoint_epochs",
-        type=int,
-        default=0,
-        help="Save checkpoint every n epochs (default 1), 0 to save no checkpoints",
-    )
-
-    parser.add_argument(
-        "--save_dir", help="Path to save the checkpoints",
     )
 
     parser.add_argument(
@@ -126,7 +87,7 @@ def get_options(args=None):
     )
     parser.add_argument(
         "--warm_start",
-        help="warm_start setting: -1: use saved warm-start model, 0: no warm-start, 1: averaging, 2: incremental training",
+        help="warm_start setting: 0: no warm-start, 1: averaging, 2: incremental training",
         type=int,
         default=consts.NONE
     )
@@ -157,11 +118,5 @@ def get_options(args=None):
         opts.device = "cuda"
     else:
         opts.device = "cpu"
-
-    opts.run_name = "{}_{}".format("run", time.strftime("%Y%m%dT%H%M%S"))
-    opts.save_dir = os.path.join(opts.output_dir, opts.run_name)
-    assert (
-            opts.dataset_size % opts.batch_size == 0
-    ), "Epoch size must be integer multiple of batch size!"
 
     return opts

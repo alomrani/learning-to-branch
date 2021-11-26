@@ -31,14 +31,15 @@ def update_meta_model_param(meta_model_param, new_model, iter, opts):
         # Initialize meta model and save for future use
         if (opts.warm_start ==  consts.AVERAGE_MODEL and iter == opts.beta - 1):
             warm_start_model = MLPClassifier(verbose=True, init_params=meta_model_param, learning_rate_init=0.01, n_iter_no_change=50, max_iter=300, warm_start=True)
-        
-        joblib.dump(warm_start_model, f'pretrained/{opts.beta}_{opts.theta}.joblib')
+
+        joblib.dump(warm_start_model, f'pretrained/{opts.beta}_{opts.theta}_{opts.warm_start}.joblib')
 
     return meta_model_param, warm_start_model
 
 def get_opt_dict(output_dir_path, instance_path):
     # Check if optimal solution exists to provide as primal bound
     primal_bound = 1e6
+    opt_dict = None
     optimal_obj_path = output_dir_path.joinpath(f"optimal_obj/{instance_path.stem}.pkl")
     print(f"* Checking optimal objective pickle at {optimal_obj_path}...")
     if optimal_obj_path.exists():
@@ -78,19 +79,18 @@ def save_solution(c, log_cb, instance_path, output_path):
 def run(opts):
 
     print(f'* Run mode: {consts.MODE[opts.mode]}')
+
+    # /scratch/rahulpat/setcover/data/1000_1000/
+    data_path = Path(opts.dataset)
+    # /scratch/rahulpat/setcover/output/1000_1000/
+    output_dir_path = data_path.parent.parent / "output" / data_path.name
+
     if opts.mode == consts.GENERATE_OPTIMAL:
         # Load instance
         # /scratch/rahulpat/setcover/train/1000_1000/1000_1000_0.lp
         instance_path = Path(opts.instance)
         assert instance_path.exists(), "Instance not found!"
 
-        # Set output path
-        # /scratch/rahulpat/setcover/output/
-        output_dir_path = instance_path.parent.parent.parent / "output"
-        # /scratch/rahulpat/setcover/output/train
-        output_dir_path = output_dir_path / instance_path.parent.parent.stem
-        # /scratch/rahulpat/setcover/output/train/1000_1000/
-        output_dir_path = output_dir_path / instance_path.parent.stem
 
         valid_extensions = ['.lp', '.mps', '.mps.gz']
         assert instance_path.suffix in valid_extensions, "Invalid instance file format!"
@@ -118,7 +118,7 @@ def run(opts):
     # Training the meta-model must be done sequentially
     elif opts.mode == consts.TRAIN_META:
         print(f'* Warm-start strategy: {consts.WARM_START[opts.warm_start]}')
-        print(f'* Beta: {opts.beta}, Theta: {opts.beta}')
+        print(f'* Beta: {opts.beta}, Theta: {opts.theta}')
 
 
         # Load relevant solve_instance()
@@ -135,23 +135,22 @@ def run(opts):
             from strategy import online_solve_instance
             solve_instance = online_solve_instance
 
-        train_path = Path(opts.train_dataset)
-
         meta_model_param, warm_start_model = None, None
         theta = opts.theta
-        for i, f in enumerate(train_path.glob('*.lp')):
+        for i, f in enumerate(data_path.glob('*.lp')):
             # Only process instances that are solved by the CPLEX to
             # optimality and use their optimal objective value as primal bound
-            primal_bound = get_opt_dict(output_dir_path, f)
             if i >= opts.beta:
                 break
+            opt_dict, primal_bound = get_opt_dict(output_dir_path, f)
                 
             c, log_cb, trained_model = solve_instance(
-                f,
-                primal_bound,
-                opts.strategy,
-                opts.timelimit,
+                path=str(f),
+                primal_bound=primal_bound,
+                branch_strategy=opts.strategy,
+                timelimit=opts.timelimit,
                 seed=opts.seed,
+                test=False,
                 warm_start_model=warm_start_model,
                 theta=theta
             )
@@ -159,13 +158,14 @@ def run(opts):
             meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model, i, opts)
 
             # /scratch/rahulpat/setcover/output/train/1000_1000/SB_PC
-            output_dir_path = output_dir_path / consts.STRATEGY[opts.strategy]
-            output_dir_path.mkdir(parents=True, exist_ok=True)
+            beta_theta_dir = f"{opts.beta}_{opts.theta}_{opts.theta2}_{opts.warm_start}"
+            output_dir_path1 = output_dir_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
+            output_dir_path1.mkdir(parents=True, exist_ok=True)
             # /scratch/rahulpat/setcover/output/train/1000_1000/SB_PC/1000_1000_0.pkl
-            output_path = output_dir_path.joinpath(str(f.stem) + ".pkl")
+            output_path = output_dir_path1.joinpath(str(f.stem) + ".pkl")
 
             save_solution(c, log_cb, f, output_path)
-        print(f"* Meta Model generated and saved at: pretrained/{opts.beta}_{opts.theta}.joblib")
+        print(f"* Meta Model generated and saved at: pretrained/{opts.beta}_{opts.theta}_{opts.warm_start}.joblib")
 
     elif opts.mode == consts.BRANCHING:
 
@@ -174,13 +174,6 @@ def run(opts):
         instance_path = Path(opts.instance)
         assert instance_path.exists(), "Instance not found!"
 
-        # Set output path
-        # /scratch/rahulpat/setcover/output/
-        output_dir_path = instance_path.parent.parent.parent / "output"
-        # /scratch/rahulpat/setcover/output/train
-        output_dir_path = output_dir_path / instance_path.parent.parent.stem
-        # /scratch/rahulpat/setcover/output/train/1000_1000/
-        output_dir_path = output_dir_path / instance_path.parent.stem
 
         assert 0 <= opts.strategy <= len(consts.STRATEGY), "Unknown branching strategy"
         print(f'* Branching strategy: {consts.STRATEGY[opts.strategy]}')
@@ -204,13 +197,16 @@ def run(opts):
 
         opts_dict, primal_bound = get_opt_dict(output_dir_path, instance_path)
 
-        meta_model = joblib.load(f'pretrained/{opts.beta}_{opts.theta}.joblib') if opts.warm_start != consts.NONE else None
+        print("* Loading Meta-model")
+        meta_model = joblib.load(f'pretrained/{opts.beta}_{opts.theta}_{opts.warm_start}.joblib') if opts.warm_start != consts.NONE else None
 
-        # /scratch/rahulpat/setcover/output/train/1000_1000/SB_PC
-        output_dir_path = output_dir_path / consts.STRATEGY[opts.strategy]
+        # /scratch/rahulpat/setcover/output/1000_1000/SB_PC
+        beta_theta_dir = f"{opts.beta}_{opts.theta}_{opts.theta2}_{opts.warm_start}"
+        output_dir_path = output_dir_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
         output_dir_path.mkdir(parents=True, exist_ok=True)
-        # /scratch/rahulpat/setcover/output/train/1000_1000/SB_PC/1000_1000_0.pkl
+        # /scratch/rahulpat/setcover/output/1000_1000/SB_PC/1000_1000_0.pkl
         output_path = output_dir_path.joinpath(str(instance_path.stem) + ".pkl")
+        
 
         if os.path.exists(output_path):
             print("* Solution already computing during meta-model training, aborting....")
@@ -228,7 +224,7 @@ def run(opts):
             theta=opts.theta2,
         )
 
-        
+
         save_solution(c, log_cb, instance_path, output_path)
         print(f"* Output file path: {output_path}")
 

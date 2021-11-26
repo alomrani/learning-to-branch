@@ -17,55 +17,6 @@ from utils import (get_branch_solution, get_clone, get_data, get_logging_callbac
 
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
-    def get_pseudocosts_score(self, pseudocosts, soln, floor_soln, ceil_soln):
-        """Assumption: p[0] == Down pseudocost, p[1] == Up pseudocost"""
-        pseudocosts_score = [0] * len(pseudocosts)
-        for i, (p, s, f, c, vid) in enumerate(zip(pseudocosts, soln, floor_soln, ceil_soln, self.var_idx_lst)):
-            pseudocosts_score[i] = ((p[0] * (s - f)) * (p[1] * (c - s)), vid)
-        pseudocosts_score = sorted(pseudocosts_score, key=itemgetter(0), reverse=True)
-
-        return pseudocosts_score
-
-    # def get_candidates(self):
-    #     soln = self.get_values(self.var_idx_lst)
-    #     candidate_soln, candidate_idx = [], []
-    #     candidate_soln_idx_map = [(s, i) for s, i in zip(soln, self.var_idx_lst) if
-    #                               not (abs(s - round(s)) <= self.EPSILON)]
-    #     soln = [si[0] for si in candidate_soln_idx_map]
-    #     vidx = [si[1] for si in candidate_soln_idx_map]
-
-    #     pseudocosts = self.get_pseudo_costs(vidx)
-    #     floor_soln = np.floor(soln)
-    #     ceil_soln = np.ceil(soln)
-
-    #     pseudocosts_score = self.get_pseudocosts_score(pseudocosts, soln, floor_soln, ceil_soln)
-    #     max_k = self.K if len(pseudocosts_score) >= self.K else len(pseudocosts_score)
-    #     pc_scores = [i[0] for i in pseudocosts_score[: max_k]]
-    #     candidates = [i[1] for i in pseudocosts_score[: max_k]]
-
-    #     return candidates, pc_scores
-
-    # def get_strong_branching_score(self, candidates):
-    #     cclone = get_clone(self)
-    #     status, parent_objval, dual_values = solve_as_lp(cclone)
-
-    #     self.curr_node_dual_values = np.array(dual_values)
-    #     sb_scores = []
-    #     for cand in candidates:
-    #         status_lower, lower_objective = get_branch_solution(self, cclone, cand, consts.LOWER_BOUND)
-    #         status_upper, upper_objective = get_branch_solution(self, cclone, cand, consts.UPPER_BOUND)
-
-    #         delta_lower = max(lower_objective - parent_objval, params.EPSILON)
-    #         delta_upper = max(upper_objective - parent_objval, params.EPSILON)
-
-    #         sb_score = delta_lower * delta_upper
-    #         sb_scores.append(sb_score)
-
-    #         if status_lower != consts.LP_OPTIMAL:
-    #             self.num_infeasible_left[cand] += 1
-    #         if status_upper != consts.LP_OPTIMAL:
-    #             self.num_infeasible_right[cand] += 1
-    #     return np.asarray(sb_scores), cclone
 
     def candidate_labels(self, candidate_scores):
         max_score = max(candidate_scores)
@@ -102,11 +53,10 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         if len(candidates) == 0:
             return
         self.times_called += 1
-        # print(candidates)
         # Collect branching data for training ML models
         branch_var = None
         if self.times_called <= self.THETA:
-            # print("* Collecting data")      
+            # print("* Collecting data")
             # Calculate SB scores for branching candidates
             sb_scores, cclone = get_sb_scores(self, candidates)
             # print('* SB scores', sb_scores)
@@ -117,6 +67,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             # Prepare training data
             dynamic = DynamicFeaturizer(self, candidates, cclone)
             dynamic.features = np.asarray(dynamic.features)
+
             if type(self.node_feat) is list:
                 self.node_feat = dynamic.features[None, :, :]
                 self.labels = self.candidate_labels(sb_scores)[None, :]
