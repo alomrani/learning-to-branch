@@ -120,6 +120,8 @@ def run(opts):
         print(f'* Warm-start strategy: {consts.WARM_START[opts.warm_start]}')
         print(f'* Beta: {opts.beta}, Theta: {opts.theta}')
 
+        assert opts.beta > 0 and opts.theta > 0 and opts.theta2 > 0, "Beta, theta, theta2 must be set"
+        assert opts.warm_start > 0, "Must set meta-model generation scheme"
 
         # Load relevant solve_instance()
         baseline_strategy = (
@@ -174,6 +176,8 @@ def run(opts):
         instance_path = Path(opts.instance)
         assert instance_path.exists(), "Instance not found!"
 
+        if opts.warm_start != 0:
+            assert opts.beta > 0 and opts.theta > 0 and opts.theta2 > 0, "Beta, theta, theta2 must be set"
 
         assert 0 <= opts.strategy <= len(consts.STRATEGY), "Unknown branching strategy"
         print(f'* Branching strategy: {consts.STRATEGY[opts.strategy]}')
