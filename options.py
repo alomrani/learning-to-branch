@@ -45,12 +45,12 @@ def get_options(args=None):
     parser.add_argument(
         "--dataset",
         type=str,
-        default="./data/train",
+        default="./data/1000_1000",
         help="Folder containing lp files of training instances",
     )
 
     parser.add_argument(
-        "--dataset_size", type=int, default=10000, help="Dataset size for training",
+        "--dataset_size", type=int, default=1000, help="Dataset size",
     )
     parser.add_argument(
         "--lr_model",

@@ -164,7 +164,7 @@ def solve_instance(path='set_cover.lp',
     if warm_start_model is not None:
         vsel_cb.model = warm_start_model
     elif branch_strategy == consts.BS_SB_ML_SVMRank:
-        vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2, kernel='linear')
+        vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2)
     elif branch_strategy == consts.BS_SB_ML_NN:
         vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=50, max_iter=300, warm_start=True)
     # Solve the instance and save stats
