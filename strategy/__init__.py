@@ -1,0 +1,2 @@
+from strategy.baseline import solve_instance as baseline_solve_instance
+from strategy.online import solve_instance as online_solve_instance

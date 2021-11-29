@@ -1,50 +1,56 @@
+import argparse
 import os
 import time
-import argparse
+
 import torch
 
+import consts
+import params
 
 def get_options(args=None):
     parser = argparse.ArgumentParser(
         description="Options for learning to branch"
     )
 
-    # Training
-
     parser.add_argument(
-        "--batch_size",
+        "--mode",
         type=int,
-        default=100,
-        help="Number of instances per batch during training",
-    )
-    parser.add_argument(
-        "--val_size",
-        type=float,
-        default=1000.,
-        help="Number of instances used for reporting validation performance",
+        default=consts.BRANCHING,
+        help="Generate optimal solution or do branching"
     )
 
     parser.add_argument(
-        "--val_dataset",
-        type=str,
-        default="datasets/val.pt",
-        help="Dataset file to use for validation",
-    )
-    parser.add_argument(
-        "--test_dataset",
-        type=str,
-        default="datasets/test.pt",
-        help="Dataset file to use for testing",
-    )
-    parser.add_argument(
-        "--train_dataset",
-        type=str,
-        default="datasets/train.pt",
-        help="Dataset file to use for training",
+        "--inst_parallel",
+        type=int,
+        default=0,
+        help="Flag to control solving instances in parallel"
     )
 
     parser.add_argument(
-        "--dataset_size", type=int, default=10000, help="Dataset size for training",
+        "--num_workers",
+        type=int,
+        default=4,
+        help="Number of parallel workers. Used when inst_parallel is 1"
+    )
+
+    parser.add_argument(
+        "--timelimit",
+        type=int,
+        default=600,
+        help="Solver timelimit in seconds"
+    )
+
+
+
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="./data/1000_1000",
+        help="Folder containing lp files of training instances",
+    )
+
+    parser.add_argument(
+        "--dataset_size", type=int, default=1000, help="Dataset size",
     )
     parser.add_argument(
         "--lr_model",
@@ -56,29 +62,55 @@ def get_options(args=None):
         "--lr_decay", type=float, default=1.0, help="Learning rate decay per epoch"
     )
     # Misc
+
     parser.add_argument(
-        "--tune",
-        action="store_true",
-        help="Set this to true if you want to tune the hyperparameters",
+        "--output_dir", default="./outputs", help="Directory to write model outputs to"
     )
 
     parser.add_argument(
-        "--output_dir", default="outputs", help="Directory to write model outputs to"
-    )
-
-    parser.add_argument(
-        "--checkpoint_epochs",
+        "--strategy",
+        help="Branching strategy for solving mip",
         type=int,
-        default=0,
-        help="Save checkpoint every n epochs (default 1), 0 to save no checkpoints",
+        default=consts.BS_PC
     )
-
+    parser.add_argument(
+        "--theta",
+        help="Number of data samples collected while training meta model",
+        type=int,
+        default=params.THETA
+    )
+    parser.add_argument(
+        "--theta2",
+        help="Number of data samples collected after warm-starting with meta model",
+        type=int,
+        default=params.THETA2
+    )
+    parser.add_argument(
+        "--warm_start",
+        help="warm_start setting: 0: no warm-start, 1: averaging, 2: incremental training",
+        type=int,
+        default=consts.NONE
+    )
+    parser.add_argument(
+        "--beta",
+        help="Number of instances used for training meta-model",
+        type=int,
+        default=consts.BETA
+    )
 
     parser.add_argument(
-        "--save_dir", help="Path to save the checkpoints",
+        "--instance",
+        help="Path to instance lp file",
+        type=str,
+        default="/scratch/rahulpat/setcover/train/1000_1000/1000_1000_0.lp"
     )
 
-
+    parser.add_argument(
+        "--seed",
+        help="Seed for CPLEX",
+        type=int,
+        default=3
+    )
 
     opts = parser.parse_args(args)
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
@@ -87,11 +119,4 @@ def get_options(args=None):
     else:
         opts.device = "cpu"
 
-    opts.run_name = "{}_{}".format("run", time.strftime("%Y%m%dT%H%M%S"))
-    opts.save_dir = os.path.join(opts.output_dir, opts.run_name)
-    assert (
-        opts.dataset_size % opts.batch_size == 0
-    ), "Epoch size must be integer multiple of batch size!"
     return opts
-    
-    
