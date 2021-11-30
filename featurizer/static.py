@@ -5,7 +5,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 class StaticFeaturizer:
-    def __init__(self, cplex_instance):
+    def __init__(self, cplex_instance, var_name_lst):
         self.num_vars = cplex_instance.variables.get_num()
         self.var_names = cplex_instance.variables.get_names() # Simple list of strings
         self.var_types = cplex_instance.variables.get_types() # Simple list of 'B', 'I' or 'C'
@@ -13,7 +13,7 @@ class StaticFeaturizer:
         self.num_rows = cplex_instance.linear_constraints.get_num()
         self.rows = cplex_instance.linear_constraints.get_rows() # List of SparsePair objects - SparsePair(ind=[], val=[])
         self.rhs = np.array(cplex_instance.linear_constraints.get_rhs()) # Simple list of values
-        self.obj = np.array(cplex_instance.objective.get_linear())
+        self.obj = np.array(cplex_instance.objective.get_linear(var_name_lst))
 
         # Generate the row x column matrix
         self.matrix = csr_matrix((self.num_rows, self.num_vars))

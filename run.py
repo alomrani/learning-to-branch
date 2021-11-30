@@ -86,8 +86,8 @@ def update_meta_model_param(meta_model_param, new_model, iter, opts):
     if iter == opts.beta - 1:
         # Initialize meta model and save for future use
         if (opts.warm_start == consts.AVERAGE_MODEL and iter == opts.beta - 1):
-            warm_start_model = MLPClassifier(verbose=True, init_params=meta_model_param, learning_rate_init=0.01,
-                                             n_iter_no_change=30, max_iter=300, warm_start=True)
+            warm_start_model = MLPClassifier(init_params=meta_model_param, learning_rate_init=0.01,
+                                             n_iter_no_change=100, max_iter=300, warm_start=True)
         dataset_type = pathlib.Path(opts.dataset).name
         joblib.dump(warm_start_model,
                     f'pretrained/{dataset_type}_{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib')
