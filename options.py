@@ -40,7 +40,7 @@ def get_options(args=None):
     parser.add_argument(
         "--dataset",
         type=str,
-        default="./data/setcover/data/1000_1000/",
+        default="./setcover/data/1000_1000/",
         help="Folder containing lp files of training instances",
     )
 

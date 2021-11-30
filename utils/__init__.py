@@ -46,6 +46,9 @@ def get_paths(opts):
 
         instance_paths = [all_instance_paths[param_idx]
                           for param_idx in range(this_worker, dataset_size, N_WORKERS)]
+    elif opts.warm_start != consts.NONE:
+        instance_paths = [p for p in data_path.iterdir()]
+        instance_paths.sort()
     else:
         instance_paths = [Path(opts.instance)]
 

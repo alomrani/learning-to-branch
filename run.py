@@ -1,5 +1,7 @@
+import pathlib
 import pickle as pkl
 import sys
+from warnings import WarningMessage
 
 import joblib
 
@@ -79,20 +81,21 @@ def update_meta_model_param(meta_model_param, new_model, iter, opts):
                 meta_model_param = (new_model.coefs_, new_model.intercepts_)
         elif opts.warm_start == consts.INCREMENTAL_WARM_START:
             warm_start_model = new_model
+            new_model.n_iter_no_change += 100
 
     if iter == opts.beta - 1:
         # Initialize meta model and save for future use
         if (opts.warm_start == consts.AVERAGE_MODEL and iter == opts.beta - 1):
             warm_start_model = MLPClassifier(verbose=True, init_params=meta_model_param, learning_rate_init=0.01,
                                              n_iter_no_change=30, max_iter=300, warm_start=True)
-
+        dataset_type = pathlib.Path(opts.dataset).name
         joblib.dump(warm_start_model,
-                    f'pretrained/{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib')
+                    f'pretrained/{dataset_type}_{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib')
 
     return meta_model_param, warm_start_model
 
 
-def solve_branching(instance_path, output_path, opts):
+def solve_branching(instance_path, output_path, opts, theta, warm_start_model=None):
     # Load instance
     assert instance_path.exists(), "Instance not found!"
 
@@ -100,14 +103,17 @@ def solve_branching(instance_path, output_path, opts):
     print(f"* File: {str(instance_path)}\n* Seed: {opts.seed}")
 
     opts_dict, primal_bound = get_optimal_obj_dict(output_path, instance_path)
-
-    print("* Loading Meta-model")
-    meta_model = joblib.load(
-        f'pretrained/{instance_path.parent.name}_{opts.beta}_{opts.theta}'
-        f'_{consts.WARM_START[opts.warm_start]}.joblib') \
-        if opts.warm_start != consts.NONE else None
+    meta_model = None
+    if opts.mode != consts.TRAIN_META:
+        print("* Loading Meta-model")
+        meta_model = joblib.load(
+            f'pretrained/{instance_path.parent.name}_{opts.beta}_{opts.theta}'
+            f'_{consts.WARM_START[opts.warm_start]}.joblib') \
+            if opts.warm_start != consts.NONE else None
+    else:
+        meta_model = warm_start_model
     if meta_model is None:
-        print('\t** No meta-model not found!')
+        print('\t** No meta-model found!')
 
     beta_theta_dir = f"{opts.beta}_{opts.theta}_{opts.theta2}_{consts.WARM_START[opts.warm_start]}"
     output_path1 = output_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
@@ -138,16 +144,15 @@ def solve_branching(instance_path, output_path, opts):
         timelimit=opts.timelimit,
         branch_strategy=opts.strategy,
         seed=opts.seed,
-        test=True,
+        test=False,
         warm_start_model=meta_model,
-        theta=opts.theta2,
+        theta=theta,
     )
-    trained_model = vsel_cb.model
 
     save_solution(c, log_cb, vsel_cb, instance_path, output_path1)
     print(f"* Output file path: {output_path1}")
 
-    return c, log_cb, trained_model
+    return c, log_cb, vsel_cb
 
 
 def run(opts):
@@ -185,35 +190,18 @@ def run(opts):
 
         meta_model_param, warm_start_model = None, None
         theta = opts.theta
-        for i, f in enumerate(data_path.glob('*.lp')):
+        num_instances_trained = 0
+        for i, f in enumerate(instance_paths):
             # Only process instances that are solved by the CPLEX to
             # optimality and use their optimal objective value as primal bound
-            if i >= opts.beta:
+            if num_instances_trained >= opts.beta:
                 break
-            opt_dict, primal_bound = get_optimal_obj_dict(output_path, f)
-
-            c, log_cb, vsel_cb = solve_instance(
-                path=str(f),
-                primal_bound=primal_bound,
-                branch_strategy=opts.strategy,
-                timelimit=opts.timelimit,
-                seed=opts.seed,
-                test=False,
-                warm_start_model=warm_start_model,
-                theta=theta
-            )
+            c, log_cb, vsel_cb = solve_branching(f, output_path, opts, theta=opts.theta, warm_start_model=warm_start_model)
             trained_model = vsel_cb.model
-
-            meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model, i, opts)
-
-            # /scratch/rahulpat/setcover/output/train/1000_1000/SB_PC
-            beta_theta_dir = f"{opts.beta}_{opts.theta}_{opts.theta2}_{consts.WARM_START[opts.warm_start]}"
-            output_path1 = output_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
-            output_path1.mkdir(parents=True, exist_ok=True)
-            # /scratch/rahulpat/setcover/output/train/1000_1000/SB_PC/1000_1000_0.pkl
-            output_path2 = output_path1.joinpath(str(f.stem) + ".pkl")
-
-            save_solution(c, log_cb, f, output_path2)
+            print(vsel_cb.times_called)
+            if vsel_cb.times_called >= opts.theta:
+                num_instances_trained += 1
+                meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model, num_instances_trained, opts)
         print(
             f"* Meta Model generated and saved at: pretrained/{data_path.name}_{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib")
 
@@ -232,7 +220,7 @@ def run(opts):
         scorefile_path = output_path / exp_key / "scorefile.csv"
         scorefile_path = scorefile_path.expanduser()
         for instance_path in instance_paths:
-            c, log_cb, _ = solve_branching(instance_path, output_path, opts)
+            c, log_cb, *_ = solve_branching(instance_path, output_path, opts, theta=opts.theta2)
             # num_nodes, total_nodes = -1, -1
             # if c is not None:
             #     solve_status_id = c.solution.get_status()

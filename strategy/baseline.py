@@ -29,7 +29,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         # candidate_idxs = get_candidates(pseudocosts, values, self.branch_strategy, self.var_idx_lst)
         candidate_names = get_candidates(pseudocosts, values, values_dict, self.branch_strategy, self.var_name_lst)
-        print("++++++++++", candidate_names)
+        # print("++++++++++", candidate_names)
 
         # if len(candidate_idxs) == 0:
         #     return
@@ -55,8 +55,8 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         # Nothing to branch on
         if branching_var_idx is None:
             return
-        print("*********", branching_var_idx, pseudocosts_dict['x394'], pseudocosts_dict['x395'],
-              pseudocosts_dict['x393'])
+        # print("*********", branching_var_idx, pseudocosts_dict['x394'], pseudocosts_dict['x395'],
+            #   pseudocosts_dict['x393'])
 
         # print("\t********", branching_var_idx, pseudocosts[394])
         branching_val = self.get_values(branching_var_idx)
@@ -75,8 +75,8 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
             self.make_branch(obj_val, variables=[branch], constraints=[], node_data=node_data_clone)
 
-        if self.times_called == 5:
-            self.abort()
+        # if self.times_called == 5:
+        #     self.abort()
 
 
 def solve_instance(

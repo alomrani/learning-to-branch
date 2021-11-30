@@ -50,7 +50,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         values_dict = {k: v for k, v in zip(self.var_name_lst, values)}
 
         # candidate_idxs = get_candidates(pseudocosts, values, self.branch_strategy, self.var_idx_lst)
-        candidate_names = get_candidates(pseudocosts, values, values_dict, self.branch_strategy, self.var_name_lst)
+        candidate_names = get_candidates(pseudocosts, values, values_dict, self.strategy, self.var_name_lst)
         if len(candidate_names) == 0:
             return
         candidates = [self.var_name_idx_dict[k] for k in candidate_names]
@@ -140,7 +140,6 @@ def solve_instance(path='set_cover.lp',
     set_params(c, primal_bound=primal_bound, timelimit=timelimit,
                seed=seed, test=test, branch_strategy=branch_strategy)
 
-    stat_feat = StaticFeaturizer(c)
     var_lst = c.variables.get_names()
     var_idx_lst = c.variables.get_indices(var_lst)
 
@@ -153,6 +152,7 @@ def solve_instance(path='set_cover.lp',
     var_idx_lst = c.variables.get_indices(var_name_lst)
     vsel_cb.var_idx_lst = var_idx_lst
     vsel_cb.var_name_idx_dict = {i[0]: i[1] for i in zip(var_name_lst, var_idx_lst)}
+    stat_feat = StaticFeaturizer(c, var_name_lst)
     vsel_cb.stat_feat = stat_feat
     vsel_cb.strategy = branch_strategy
     vsel_cb.times_called = 0
@@ -171,7 +171,7 @@ def solve_instance(path='set_cover.lp',
     elif branch_strategy == consts.BS_SB_ML_SVMRank:
         vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2)
     elif branch_strategy == consts.BS_SB_ML_NN:
-        vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=50, max_iter=300, warm_start=True)
+        vsel_cb.model = MLPClassifier(verbose=True, learning_rate_init=0.01, n_iter_no_change=100, max_iter=300, warm_start=True, tol=1e-6)
     # Solve the instance and save stats
     c.solve()
 
