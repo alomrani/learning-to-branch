@@ -1,3 +1,11 @@
+# Dataset types
+HOMOGENEOUS = 'HOMOGENEOUS'
+HETEROGENEOUS = 'HETEROGENEOUS'
+DATASET_TYPE = [
+    HOMOGENEOUS,
+    HETEROGENEOUS
+]
+
 # Run modes
 GENERATE_OPTIMAL = 0
 BRANCHING = 1
@@ -22,21 +30,24 @@ UPPER_BOUND = 'U'
 LOWER_BOUND = 'L'
 
 # Branch strategy constants
-BS_DEFAULT = 0
-BS_SB = 1
-BS_PC = 2
-BS_SB_PC = 3
-BS_SB_ML_SVMRank = 4
-BS_SB_ML_NN = 5
+CPX_DEFAULT = 0
+CPX_PC = 1
+CPX_SB = 2
+BS_SB = 3
+BS_PC = 4
+BS_SB_PC = 5
+BS_SB_ML_SVMRank = 6
+BS_SB_ML_NN = 7
 STRATEGY = [
-    'DEFAULT',
+    'CPX_DEFAULT',
+    'CPX_PC',
+    'CPX_SB',
     'SB',
     'PS',
     'SB_PS',
     'SB_SVM_RANK',
     'SB_FFNN',
 ]
-
 
 NONE = 0
 AVERAGE_MODEL = 1
@@ -48,6 +59,3 @@ WARM_START = [
     'INCREMENTAL_WARM_START'
 ]
 BETA = -1  # Number of instances to solve before warm-starting
-
-
-

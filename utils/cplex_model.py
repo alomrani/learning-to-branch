@@ -1,3 +1,5 @@
+from operator import itemgetter
+
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
@@ -8,16 +10,11 @@ import params
 
 class LoggingCallback(CPX_CB.MIPInfoCallback):
     def __call__(self):
-        nn = self.get_num_nodes()
-        if nn > self.num_nodes:
-            self.num_nodes = nn
-
         self.total_time = self.get_time() - self.get_start_time()
 
 
 def get_logging_callback(c):
     log_cb = c.register_callback(LoggingCallback)
-    log_cb.num_nodes = 0
     log_cb.total_time = 0
 
     return log_cb
@@ -32,8 +29,12 @@ def set_params(c, primal_bound=None,
         c.parameters.randomseed.set(seed)
 
     # Select from one of the default branching strategies
-    if branch_strategy == consts.BS_DEFAULT:
+    if branch_strategy == consts.CPX_DEFAULT:
         c.parameters.mip.strategy.variableselect.set(0)
+    elif branch_strategy == consts.CPX_PC:
+        c.parameters.mip.strategy.variableselect.set(2)
+    elif branch_strategy == consts.CPX_SB:
+        c.parameters.mip.strategy.variableselect.set(3)
 
     # Single threaded
     c.parameters.threads.set(1)
@@ -94,7 +95,7 @@ def create_default_branches(context):
         context.make_cplex_branch(branch)
 
 
-def solve_as_lp(c, max_iterations=None):
+def solve_as_lp(c, max_iterations=50):
     disable_output(c)
     # Create LP for the input MIP
     c.set_problem_type(c.problem_type.LP)
@@ -113,8 +114,8 @@ def solve_as_lp(c, max_iterations=None):
     return status, objective, dual_values
 
 
-def get_branch_solution(context, cclone, var, bound_type):
-    value = context.get_values(var)
+def get_branch_solution(context, cclone, var_idx, bound_type):
+    value = context.get_values(var_idx)
 
     get_bounds = None
     set_bounds = None
@@ -128,11 +129,11 @@ def get_branch_solution(context, cclone, var, bound_type):
         set_bounds = cclone.variables.set_upper_bounds
         new_bound = np.floor(value)
 
-    original_bound = get_bounds(var)
+    original_bound = get_bounds(var_idx)
 
-    set_bounds(var, new_bound)
+    set_bounds(var_idx, new_bound)
     status, objective, _ = solve_as_lp(cclone)
-    set_bounds(var, original_bound)
+    set_bounds(var_idx, original_bound)
 
     return status, objective
 
@@ -163,14 +164,14 @@ def get_branch_solution(context, cclone, var, bound_type):
 
 def apply_branch_history(c, branch_history):
     for b in branch_history:
-        b_var = b[0]
+        b_var_idx = b[0]
         b_type = b[1]
         b_val = b[2]
 
         if b_type == consts.LOWER_BOUND:
-            c.variables.set_lower_bounds(b_var, b_val)
+            c.variables.set_lower_bounds(b_var_idx, b_val)
         elif b_type == consts.UPPER_BOUND:
-            c.variables.set_upper_bounds(b_var, b_val)
+            c.variables.set_upper_bounds(b_var_idx, b_val)
 
 
 def get_data(context):
@@ -190,46 +191,70 @@ def get_clone(context):
     return cclone
 
 
-def get_candidates(pseudocosts, values, branch_strategy):
+# def get_candidates(pseudocosts, values, branch_strategy, var_idx_lst):
+#     up_frac = np.ceil(values) - values
+#     down_frac = values - np.floor(values)
+#
+#     scores = [(uf * df * pc[0] * pc[1], vidx)
+#               for pc, uf, df, vidx in zip(pseudocosts, up_frac, down_frac, var_idx_lst)]
+#     scores = sorted(scores, key=itemgetter(0), reverse=True)
+#     # print(scores[:20])
+#
+#     ranked_var_idx_lst = [i[1] for i in scores]
+#
+#     num_candidates = params.K if branch_strategy != consts.BS_PC else 1
+#     candidate_idxs = []
+#     for i in ranked_var_idx_lst:
+#         if len(candidate_idxs) == num_candidates:
+#             break
+#
+#         value = values[i]
+#         if not abs(value - round(value)) <= params.EPSILON:
+#             candidate_idxs.append(i)
+#
+#     return candidate_idxs
+
+def get_candidates(pseudocosts, values, values_dict, branch_strategy, var_name_lst):
     up_frac = np.ceil(values) - values
     down_frac = values - np.floor(values)
 
-    scores = [uf * df * pc[0] * pc[1] for pc, uf, df in zip(pseudocosts,
-                                                            up_frac,
-                                                            down_frac)]
-    variables = sorted(range(len(scores)), key=lambda i: -scores[i])
+    scores = [(uf * df * pc[0] * pc[1], vname)
+              for pc, uf, df, vname in zip(pseudocosts, up_frac, down_frac, var_name_lst)]
+    scores = sorted(scores, key=itemgetter(0), reverse=True)
+    # print("-----------", scores[:20])
+    ranked_var_name_lst = [i[1] for i in scores]
 
     num_candidates = params.K if branch_strategy != consts.BS_PC else 1
-    candidates = []
-    for i in variables:
-        if len(candidates) == num_candidates:
+    candidate_names = []
+    for name in ranked_var_name_lst:
+        if len(candidate_names) == num_candidates:
             break
 
-        value = values[i]
+        value = values_dict[name]
         if not abs(value - round(value)) <= params.EPSILON:
-            candidates.append(i)
+            candidate_names.append(name)
 
-    return candidates
+    return candidate_names
 
 
-def get_sb_scores(context, candidates):
+def get_sb_scores(context, candidate_idxs):
     cclone = get_clone(context)
     status, parent_objective, dual_values = solve_as_lp(cclone)
 
     sb_scores = []
     if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
         context.curr_node_dual_values = np.asarray(dual_values)
-        for var in candidates:
-            upper_status, upper_objective = get_branch_solution(context, cclone, var, consts.LOWER_BOUND)
-            lower_status, lower_objective = get_branch_solution(context, cclone, var, consts.UPPER_BOUND)
+        for var_idx in candidate_idxs:
+            upper_status, upper_objective = get_branch_solution(context, cclone, var_idx, consts.LOWER_BOUND)
+            lower_status, lower_objective = get_branch_solution(context, cclone, var_idx, consts.UPPER_BOUND)
 
             # Infeasibility leads to higher score as it helps in pruning the tree
             if upper_status == consts.LP_INFEASIBLE:
                 upper_objective = consts.INFEASIBILITY_SCORE
-                context.num_infeasible_right[var] += 1
+                context.num_infeasible_right[var_idx] += 1
             if lower_status == consts.LP_INFEASIBLE:
                 lower_objective = consts.INFEASIBILITY_SCORE
-                context.num_infeasible_left[var] += 1
+                context.num_infeasible_left[var_idx] += 1
 
             # Calculate deltas
             delta_upper = max(upper_objective - parent_objective, params.EPSILON)

@@ -1,18 +1,13 @@
-from operator import itemgetter
-from platform import node
-import time
-
 import cplex as CPX
 import cplex.callbacks as CPX_CB
 import numpy as np
 from sklearn.svm import SVC
-from sklearn.utils.multiclass import check_classification_targets
-from models.MLPClassifier import MLPClassifier1 as MLPClassifier
+
 import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
-import strategy
-from utils import (get_branch_solution, get_clone, get_data, get_logging_callback,
+from models.MLPClassifier import MLPClassifier1 as MLPClassifier
+from utils import (get_clone, get_data, get_logging_callback,
                    set_params, solve_as_lp, get_sb_scores, get_candidates)
 
 
@@ -170,4 +165,4 @@ def solve_instance(path='set_cover.lp',
     # Solve the instance and save stats
     c.solve()
 
-    return c, log_cb, vsel_cb.model
+    return c, log_cb, vsel_cb
