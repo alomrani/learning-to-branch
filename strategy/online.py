@@ -42,11 +42,18 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
         # Get branching candidates based on pseudo costs
         # candidates, ps_scores = self.get_candidates()
-        pseudocosts = self.get_pseudo_costs()
-        values = self.get_values()
-        candidates = get_candidates(pseudocosts, values, self.strategy)
-        if len(candidates) == 0:
+        pseudocosts = self.get_pseudo_costs(self.var_name_lst)
+        pseudocosts_dict = {k: v for k, v in zip(self.var_name_lst, pseudocosts)}
+
+        # values = self.get_values(self.var_idx_lst)
+        values = self.get_values(self.var_name_lst)
+        values_dict = {k: v for k, v in zip(self.var_name_lst, values)}
+
+        # candidate_idxs = get_candidates(pseudocosts, values, self.branch_strategy, self.var_idx_lst)
+        candidate_names = get_candidates(pseudocosts, values, values_dict, self.branch_strategy, self.var_name_lst)
+        if len(candidate_names) == 0:
             return
+        candidates = [self.var_name_idx_dict[k] for k in candidate_names]
         self.times_called += 1
         # Collect branching data for training ML models
         branch_var = None
@@ -141,8 +148,11 @@ def solve_instance(path='set_cover.lp',
 
     vsel_cb = c.register_callback(VariableSelectionCallback)
     vsel_cb.c = c
-    vsel_cb.var_lst = var_lst
+    var_name_lst = c.variables.get_names()
+    vsel_cb.var_name_lst = var_name_lst
+    var_idx_lst = c.variables.get_indices(var_name_lst)
     vsel_cb.var_idx_lst = var_idx_lst
+    vsel_cb.var_name_idx_dict = {i[0]: i[1] for i in zip(var_name_lst, var_idx_lst)}
     vsel_cb.stat_feat = stat_feat
     vsel_cb.strategy = branch_strategy
     vsel_cb.times_called = 0
