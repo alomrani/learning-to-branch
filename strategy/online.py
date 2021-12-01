@@ -7,6 +7,7 @@ import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
 from models.MLPClassifier import MLPClassifier1 as MLPClassifier
+from run import update_meta_model_param
 from utils import (get_clone, get_data, get_logging_callback,
                    set_params, solve_as_lp, get_sb_scores, get_candidates)
 
@@ -19,21 +20,21 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         labels = (candidate_scores >= (1 - self.alpha) * max_score).astype(int)
         return labels
 
-    def bipartite_ranking(self, labels):
+    def update_bipartite_ranking(self, node_feat, labels):
         bipartite_rank_labels = []
+        K = len(node_feat)
         feature_diff = []
-        node_feat = self.node_feat.reshape((self.THETA, self.K, 72))
-        max_feat = np.argmax(node_feat, axis=1)[:, None, :]
+        max_feat = np.argmax(node_feat, axis=0)[None, :]
         node_feat = node_feat / (max_feat + (max_feat == 0).astype(int))
-        for i in range(self.THETA):
-            for j in range(self.K):
-                for k in range(j, self.K):
-                    if j != k and labels[i, j] != labels[i, k]:
-                        feature_diff.append(node_feat[i, j] - node_feat[i, k])
-                        bipartite_rank_labels.append(labels[i, j] - labels[i, k])
-                        feature_diff.append(-(node_feat[i, j] - node_feat[i, k]))
-                        bipartite_rank_labels.append(-(labels[i, j] - labels[i, k]))
+        for i in range(K):
+            for j in range(i, K):
+                if j != i and labels[j] != labels[i]:
+                    feature_diff.append(node_feat[j] - node_feat[i])
+                    bipartite_rank_labels.append(labels[j] - labels[i])
+                    feature_diff.append(-(node_feat[j] - node_feat[i]))
+                    bipartite_rank_labels.append(-(labels[j] - labels[i]))
         return np.asarray(feature_diff), np.asarray(bipartite_rank_labels)
+
 
     def __call__(self):
 
@@ -69,24 +70,25 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             # Prepare training data
             dynamic = DynamicFeaturizer(self, candidates, cclone)
             dynamic.features = np.asarray(dynamic.features)
-
-            if type(self.node_feat) is list:
-                self.node_feat = dynamic.features[None, :, :]
-                self.labels = self.candidate_labels(sb_scores)[None, :]
+            labels = self.candidate_labels(sb_scores)
+            if self.times_called == 1:
+                self.node_feat, self.rank_labels = self.update_bipartite_ranking(dynamic.features, labels)
+                self.rank_labels = self.rank_labels[:, None]
             else:
-                self.node_feat = np.concatenate((self.node_feat, dynamic.features[None, :, :]), axis=0)
-                self.labels = np.concatenate((self.labels, self.candidate_labels(sb_scores)[None, :]), axis=0)
+                curr_node_feat, curr_rank_labels = self.update_bipartite_ranking(dynamic.features, labels)
+                self.node_feat = np.concatenate((self.node_feat, curr_node_feat), axis=0)
+                self.rank_labels = np.concatenate((self.rank_labels, curr_rank_labels[:, None]), axis=0)
             if self.times_called == self.THETA:
                 # Train model
                 print("* Making dataset")
-                feat_diff, rank_labels = self.bipartite_ranking(self.labels)
+                feat_diff, rank_labels = self.node_feat, self.rank_labels
                 if self.strategy == consts.BS_SB_ML_SVMRank:
                     print("* Training Model")
-                    self.model = self.model.fit(feat_diff, rank_labels)
+                    self.model = self.model.fit(feat_diff, rank_labels[:, 0])
                     print("* Done")
                 elif self.strategy == consts.BS_SB_ML_NN:
                     print("* Training Model")
-                    self.model = self.model.fit(feat_diff, rank_labels)
+                    self.model = self.model.fit(feat_diff, rank_labels[:, 0])
                     print("* Done")
 
         else:
