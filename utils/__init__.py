@@ -38,7 +38,7 @@ def get_paths(opts):
 
         # Total number of slurm workers detected
         # Defaults to 1 if not running under SLURM
-        N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
+        N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 2))
 
         # This worker's array index. Assumes slurm array job is zero-indexed
         # Defaults to zero if not running under SLURM

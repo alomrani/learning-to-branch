@@ -1,7 +1,7 @@
 import pathlib
 import pickle as pkl
 import sys
-from warnings import WarningMessage
+import time
 
 import joblib
 
@@ -34,7 +34,7 @@ def save_solution(c, log_cb, vsel_cb, instance_path, output_path):
 
     # Save results
     pkl.dump(result_dict, open(output_path, 'wb'))
-    print(result_dict)
+    # print(result_dict)
 
 
 def solve_optimal(instance_path, output_path, opts):
@@ -47,8 +47,11 @@ def solve_optimal(instance_path, output_path, opts):
     import cplex as CPX
     c = CPX.Cplex(str(instance_path))
     c.parameters.timelimit.set(opts.timelimit)
+    c.parameters.threads.set(4)
     disable_output(c)
+    tick = time.time()
     c.solve()
+    solve_time = time.time() - tick
 
     # Fetch optimal objective value
     optimal_obj_dict = {}
@@ -56,6 +59,7 @@ def solve_optimal(instance_path, output_path, opts):
     if c.solution.get_status() == c.solution.status.MIP_optimal:
         objective_value = c.solution.get_objective_value()
     optimal_obj_dict[instance_path.name] = objective_value
+    optimal_obj_dict['solve_time'] = solve_time
     print(f'* Result: {optimal_obj_dict}')
 
     # Save result
@@ -125,7 +129,6 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
     if output_path1.exists():
         print("* Solution already computed during meta-model training, aborting....")
         return None, None, None
-
 
     print("* Starting the solve...")
     # Load relevant solve_instance()
@@ -199,30 +202,32 @@ def run(opts):
             # optimality and use their optimal objective value as primal bound
             if num_instances_trained >= opts.beta:
                 break
-            c, log_cb, vsel_cb = solve_branching(f, output_path, opts, theta=opts.theta, warm_start_model=warm_start_model)
+            c, log_cb, vsel_cb = solve_branching(f, output_path, opts, theta=opts.theta,
+                                                 warm_start_model=warm_start_model)
             if c is None:
                 continue
             if vsel_cb.times_called >= opts.theta:
                 trained_model = vsel_cb.model
                 num_instances_trained += 1
-                meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model, num_instances_trained, opts)
+                meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model,
+                                                                             num_instances_trained, opts)
         print(
             f"* Meta Model generated and saved at: pretrained/{data_path.name}_{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib")
 
     elif opts.mode == consts.BRANCHING:
         # Solve multiple instances in parallel using SLURM array jobs
-        if opts.strategy > 4:
+        if opts.strategy > 5:
             assert opts.theta2 > 0, "Theta must be set"
         if opts.warm_start != 0:
             assert opts.beta > 0 and opts.theta > 0 and opts.theta2 > 0, "Beta, theta, theta2 must be set"
 
-        exp_key = f"{consts.STRATEGY[opts.strategy]}"
-        exp_key = "_".join([exp_key, f"{opts.beta}", f"{opts.theta}", f"{opts.theta2}"])
-        exp_key = "_".join([exp_key, f"{consts.WARM_START[opts.warm_start]}"])
+        # exp_key = f"{consts.STRATEGY[opts.strategy]}"
+        # exp_key = "_".join([exp_key, f"{opts.beta}", f"{opts.theta}", f"{opts.theta2}"])
+        # exp_key = "_".join([exp_key, f"{consts.WARM_START[opts.warm_start]}"])
 
         assert 0 <= opts.strategy <= len(consts.STRATEGY), "Unknown branching strategy"
-        scorefile_path = output_path / exp_key / "scorefile.csv"
-        scorefile_path = scorefile_path.expanduser()
+        # scorefile_path = output_path / exp_key / "scorefile.csv"
+        # scorefile_path = scorefile_path.expanduser()
         for instance_path in instance_paths:
             c, log_cb, *_ = solve_branching(instance_path, output_path, opts, theta=opts.theta2)
             # num_nodes, total_nodes = -1, -1
