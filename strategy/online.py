@@ -76,8 +76,9 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                 self.rank_labels = self.rank_labels[:, None]
             else:
                 curr_node_feat, curr_rank_labels = self.update_bipartite_ranking(dynamic.features, labels)
-                self.node_feat = np.concatenate((self.node_feat, curr_node_feat), axis=0)
-                self.rank_labels = np.concatenate((self.rank_labels, curr_rank_labels[:, None]), axis=0)
+                if len(curr_node_feat) > 0:
+                    self.node_feat = np.concatenate((self.node_feat, curr_node_feat), axis=0)
+                    self.rank_labels = np.concatenate((self.rank_labels, curr_rank_labels[:, None]), axis=0)
             if self.times_called == self.THETA:
                 # Train model
                 print("* Making dataset")
