@@ -33,7 +33,7 @@ def get_options(args=None):
     parser.add_argument(
         "--timelimit",
         type=int,
-        default=600,
+        default=200,
         help="Solver timelimit in seconds"
     )
 
