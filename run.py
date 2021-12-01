@@ -103,6 +103,8 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
     print(f"* File: {str(instance_path)}\n* Seed: {opts.seed}")
 
     opts_dict, primal_bound = get_optimal_obj_dict(output_path, instance_path)
+    if opts_dict is None or primal_bound is None or primal_bound == 1e6:
+        return None, None, None
     meta_model = None
     if opts.mode != consts.TRAIN_META:
         print("* Loading Meta-model")
@@ -123,6 +125,7 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
     if output_path1.exists():
         print("* Solution already computed during meta-model training, aborting....")
         return None, None, None
+
 
     print("* Starting the solve...")
     # Load relevant solve_instance()
@@ -197,6 +200,8 @@ def run(opts):
             if num_instances_trained >= opts.beta:
                 break
             c, log_cb, vsel_cb = solve_branching(f, output_path, opts, theta=opts.theta, warm_start_model=warm_start_model)
+            if c is None:
+                continue
             trained_model = vsel_cb.model
             print(vsel_cb.times_called)
             if vsel_cb.times_called >= opts.theta:
