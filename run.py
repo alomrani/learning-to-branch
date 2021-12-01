@@ -202,9 +202,8 @@ def run(opts):
             c, log_cb, vsel_cb = solve_branching(f, output_path, opts, theta=opts.theta, warm_start_model=warm_start_model)
             if c is None:
                 continue
-            trained_model = vsel_cb.model
-            print(vsel_cb.times_called)
             if vsel_cb.times_called >= opts.theta:
+                trained_model = vsel_cb.model
                 num_instances_trained += 1
                 meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model, num_instances_trained, opts)
         print(
