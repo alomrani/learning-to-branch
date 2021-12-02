@@ -4,6 +4,25 @@ import consts
 import params
 
 
+def set_default_path_str(opts):
+    user = 'rahul'
+    env = 'local'
+    dataset_path_str, output_path_str = './data', './output'
+    if user == 'rahul':
+        if env == 'local':
+            dataset_path_str = f'./data/setcover/data/1000_1000/'
+            output_path_str = f'./data/setcover/output/1000_10001/'
+        elif env == 'cc':
+            dataset_path_str = '/scratch/rahulpat/l2b/setcover/data/1000_1000/'
+            output_path_str = '/scratch/rahulpat/l2b/setcover/output/1000_1000/'
+    elif user == 'md':
+        # TODO: set relevant paths
+        pass
+
+    opts.dataset = dataset_path_str
+    opts.output = output_path_str
+
+
 def get_options(args=None):
     parser = argparse.ArgumentParser(
         description="Options for learning to branch"
@@ -17,17 +36,10 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--inst_parallel",
+        "--parallel",
         type=int,
         default=0,
         help="Flag to control solving instances in parallel"
-    )
-
-    parser.add_argument(
-        "--num_workers",
-        type=int,
-        default=4,
-        help="Number of parallel workers. Used when inst_parallel is 1"
     )
 
     parser.add_argument(
@@ -40,15 +52,14 @@ def get_options(args=None):
     parser.add_argument(
         "--dataset",
         type=str,
-        default="./setcover/data/1000_1000/",
         help="Folder containing lp files of training instances",
     )
 
     parser.add_argument(
-        "--dataset_type",
+        "--output",
         type=str,
-        default=consts.HOMOGENEOUS,
-        help="Type of the dataset. It can be HOMOGENEOUS or HETEROGENEOUS."
+        default='./',
+        help="Folder to the dump the results"
     )
 
     parser.add_argument(
@@ -56,6 +67,13 @@ def get_options(args=None):
         help="Branching strategy for solving mip",
         type=int,
         default=consts.BS_PC
+    )
+
+    parser.add_argument(
+        "--max_iterations",
+        help="Maximum iterations for LP",
+        type=int,
+        default=50
     )
 
     parser.add_argument(
@@ -83,14 +101,13 @@ def get_options(args=None):
         "--beta",
         help="Number of instances used for training meta-model",
         type=int,
-        default=consts.BETA
+        default=params.BETA
     )
 
     parser.add_argument(
         "--instance",
         help="Path to instance lp file",
-        type=str,
-        default="./data/setcover/data/1000_1000/instance_1.lp"
+        type=str
     )
     # default = "/scratch/rahulpat/setcover/train/1000_1000/1000_1000_0.lp"
 
@@ -101,5 +118,8 @@ def get_options(args=None):
         default=3
     )
     opts = parser.parse_args(args)
+
+    if opts.dataset is None:
+        set_default_path_str(opts)
 
     return opts

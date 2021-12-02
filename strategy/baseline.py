@@ -4,6 +4,7 @@ import numpy as np
 
 import consts
 import params
+from utils import create_default_branches
 from utils import get_candidates
 from utils import get_data
 from utils import get_logging_callback
@@ -13,11 +14,12 @@ from utils import set_params
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
     def __call__(self):
-
+        # Check if the strategy is driven by CPLEX
         if (self.branch_strategy == consts.CPX_DEFAULT
                 or self.branch_strategy == consts.CPX_PC
                 or self.branch_strategy == consts.CPX_SB):
-            return
+            create_default_branches(self)
+
         # Find candidates for branching
         # pseudocosts = self.get_pseudo_costs(self.var_idx_lst)
         pseudocosts = self.get_pseudo_costs(self.var_name_lst)
@@ -56,18 +58,17 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         if branching_var_idx is None:
             return
         # print("*********", branching_var_idx, pseudocosts_dict['x394'], pseudocosts_dict['x395'],
-            #   pseudocosts_dict['x393'])
+        #   pseudocosts_dict['x393'])
 
-        # print("\t********", branching_var_idx, pseudocosts[394])
         branching_val = self.get_values(branching_var_idx)
         obj_val = self.get_objective_value()
-
         node_data = get_data(self)
 
+        ##################################################################################
         # NOTE: branching_var must be an index of the variable
         branches = [(branching_var_idx, consts.LOWER_BOUND, np.floor(branching_val) + 1),
                     (branching_var_idx, consts.UPPER_BOUND, np.floor(branching_val))]
-
+        ##################################################################################
         for branch in branches:
             node_data_clone = node_data.copy()
             node_data_clone['branch_history'] = node_data['branch_history'][:]
@@ -75,23 +76,24 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
             self.make_branch(obj_val, variables=[branch], constraints=[], node_data=node_data_clone)
 
-        # if self.times_called == 5:
-        #     self.abort()
+        if self.times_called == 5:
+            self.abort()
 
 
 def solve_instance(
         path='set_cover.lp',
-        primal_bound=None,
+        cutoff=None,
         timelimit=None,
         seed=None,
         test=True,
         branch_strategy=consts.BS_PC,
         theta=params.THETA,
+        max_iterations=50,
         warm_start_model=None):
     # Read instance and set default parameters
     c = CPX.Cplex(path)
     np.random.seed(seed)
-    set_params(c, primal_bound=primal_bound, timelimit=timelimit,
+    set_params(c, cutoff=cutoff, timelimit=timelimit,
                branch_strategy=branch_strategy, seed=seed, test=test)
 
     log_cb = get_logging_callback(c)
@@ -110,6 +112,7 @@ def solve_instance(
     vsel_cb.branch_strategy = branch_strategy
     vsel_cb.times_called = 0
     vsel_cb.THETA = theta
+    vsel_cb.max_iterations = max_iterations
     vsel_cb.model = None
 
     # Solve the instance and save stats

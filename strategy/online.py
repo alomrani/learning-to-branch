@@ -7,7 +7,6 @@ import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
 from models.MLPClassifier import MLPClassifier1 as MLPClassifier
-from run import update_meta_model_param
 from utils import (get_clone, get_data, get_logging_callback,
                    set_params, solve_as_lp, get_sb_scores, get_candidates)
 
@@ -34,7 +33,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                     feature_diff.append(-(node_feat[j] - node_feat[i]))
                     bipartite_rank_labels.append(-(labels[j] - labels[i]))
         return np.asarray(feature_diff), np.asarray(bipartite_rank_labels)
-
 
     def __call__(self):
 
@@ -125,7 +123,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
 
 def solve_instance(path='set_cover.lp',
-                   primal_bound=None,
+                   cutoff=None,
                    timelimit=None,
                    seed=None,
                    test=True,
@@ -136,11 +134,12 @@ def solve_instance(path='set_cover.lp',
                    k=params.K,
                    alpha=params.ALPHA,
                    epsilon=params.EPSILON,
+                   max_iterations=50,
                    warm_start_model=None):
     # Read instance and set default parameters
     np.random.seed(seed)
     c = CPX.Cplex(path)
-    set_params(c, primal_bound=primal_bound, timelimit=timelimit,
+    set_params(c, cutoff=cutoff, timelimit=timelimit,
                seed=seed, test=test, branch_strategy=branch_strategy)
 
     var_lst = c.variables.get_names()
@@ -165,6 +164,7 @@ def solve_instance(path='set_cover.lp',
     vsel_cb.EPSILON = epsilon
     vsel_cb.UPPER_BOUND = upper_bound
     vsel_cb.LOWER_BOUND = lower_bound
+    vsel_cb.max_iterations = max_iterations
     vsel_cb.num_infeasible_left = np.zeros(len(var_idx_lst))
     vsel_cb.num_infeasible_right = np.zeros(len(var_idx_lst))
     vsel_cb.node_feat = []
@@ -174,7 +174,8 @@ def solve_instance(path='set_cover.lp',
     elif branch_strategy == consts.BS_SB_ML_SVMRank:
         vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2)
     elif branch_strategy == consts.BS_SB_ML_NN:
-        vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=100, max_iter=300, warm_start=True, tol=1e-6)
+        vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=100, max_iter=300, warm_start=True,
+                                      tol=1e-6)
     # Solve the instance and save stats
     c.solve()
 
