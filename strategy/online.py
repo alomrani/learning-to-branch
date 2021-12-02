@@ -123,7 +123,7 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
 
 def solve_instance(path='set_cover.lp',
-                   primal_bound=None,
+                   cutoff=None,
                    timelimit=None,
                    seed=None,
                    test=True,
@@ -138,7 +138,7 @@ def solve_instance(path='set_cover.lp',
     # Read instance and set default parameters
     np.random.seed(seed)
     c = CPX.Cplex(path)
-    set_params(c, primal_bound=primal_bound, timelimit=timelimit,
+    set_params(c, cutoff=cutoff, timelimit=timelimit,
                seed=seed, test=test, branch_strategy=branch_strategy)
 
     var_lst = c.variables.get_names()

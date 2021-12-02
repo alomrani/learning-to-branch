@@ -25,7 +25,7 @@ def get_logging_callback(c):
     return log_cb
 
 
-def set_params(c, primal_bound=None,
+def set_params(c, cutoff=None,
                branch_strategy=None,
                timelimit=None,
                seed=None,
@@ -55,12 +55,12 @@ def set_params(c, primal_bound=None,
     c.parameters.mip.strategy.search.set(
         c.parameters.mip.strategy.search.values.traditional)
 
-    # Set the primal bound if provided
-    if primal_bound is not None:
+    # Set the cutoff if provided
+    if cutoff is not None:
         if c.objective.get_sense() == consts.MINIMIZE:
-            c.parameters.mip.tolerances.lowercutoff.set(primal_bound)
+            c.parameters.mip.tolerances.lowercutoff.set(cutoff)
         else:
-            c.parameters.mip.tolerances.uppercutoff.set(primal_bound)
+            c.parameters.mip.tolerances.uppercutoff.set(cutoff)
 
     # Set timelimit if provided
     if timelimit is not None:
@@ -101,8 +101,8 @@ def create_default_branches(context):
 
 
 def get_optimal_obj_dict(output_path, instance_path):
-    # Check if optimal solution exists to provide as primal bound
-    primal_bound = 1e6
+    # Check if optimal solution exists to provide as cutoff
+    cutoff = 1e6
     opt_dict = None
     optimal_obj_path = output_path.joinpath(f"optimal_obj/{instance_path.stem}.pkl")
     print(f"* Checking optimal objective pickle at {optimal_obj_path}...")
@@ -110,14 +110,14 @@ def get_optimal_obj_dict(output_path, instance_path):
         opt_dict = pkl.load(open(optimal_obj_path, 'rb'))
         key = str(instance_path)
         if key in opt_dict and opt_dict[key]['status'] == consts.MIP_OPTIMAL:
-            primal_bound = opt_dict[key]['objective_value']
-            print(f"\t** Primal bound: {primal_bound}")
+            cutoff = opt_dict[key]['objective_value']
+            print(f"\t** Cutoff: {cutoff}")
         else:
-            print(f"\t** Instance primal bound not found...")
+            print(f"\t** Instance cutoff not found...")
     else:
-        print("\t** Warning: Optimal objective pickle not found. Can't set primal bound.")
+        print("\t** Warning: Optimal objective pickle not found. Can't set cutoff.")
 
-    return opt_dict, primal_bound
+    return opt_dict, cutoff
 
 
 def solve_as_lp(c, max_iterations=50):
@@ -371,8 +371,8 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
     print(f'* Branching strategy: {consts.STRATEGY[opts.strategy]}')
     print(f"* File: {str(instance_path)}\n* Seed: {opts.seed}")
 
-    opts_dict, primal_bound = get_optimal_obj_dict(output_path, instance_path)
-    if opts_dict is None or primal_bound is None or primal_bound == 1e6:
+    opts_dict, cutoff = get_optimal_obj_dict(output_path, instance_path)
+    if opts_dict is None or cutoff is None or cutoff == 1e6:
         return None, None, None
     if opts.mode != consts.TRAIN_META:
         print("* Loading Meta-model")
@@ -410,7 +410,7 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
         from strategy import online_solve_instance as solve_instance
     c, log_cb, vsel_cb = solve_instance(
         path=str(instance_path),
-        primal_bound=primal_bound,
+        cutoff=cutoff,
         timelimit=opts.timelimit,
         branch_strategy=opts.strategy,
         seed=opts.seed,
