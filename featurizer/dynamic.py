@@ -154,6 +154,7 @@ class DynamicFeaturizer:
 
         # Part 7: Stats for active constraints
         ## TODO: CHECK IF STATS ARE OVER ABSOLUTE VALUE OF CONSTRAINSTS COEFFICIENTS
+
         slacks = np.asarray(branch_instance.get_linear_slacks())
         active_constraints = slacks == 0
         if active_constraints.sum() != 0:
@@ -169,15 +170,16 @@ class DynamicFeaturizer:
             unit_max = np.transpose(np.max(active_matrix, axis=0))
             unit_count = np.transpose(np.sum(count_active_matrix, axis=0))
         else:
-            unit_sum = np.zeros(len(candidates), 1)
-            unit_mean = np.zeros(len(candidates), 1)
-            unit_std = np.zeros(len(candidates), 1)
-            unit_min = np.zeros(len(candidates), 1)
-            unit_max = np.zeros(len(candidates), 1)
-            unit_count = np.zeros(len(candidates), 1)
+            unit_sum = np.zeros((len(candidates), 1))
+            unit_mean = np.zeros((len(candidates), 1))
+            unit_std = np.zeros((len(candidates), 1))
+            unit_min = np.zeros((len(candidates), 1))
+            unit_max = np.zeros((len(candidates), 1))
+            unit_count = np.zeros((len(candidates), 1))
 
         # Add unit weighting features
         self.features = np.c_[self.features, unit_sum, unit_mean, unit_std, unit_min, unit_max, unit_count]
+
         # print('1, 2, 5, 6, 7a', self.features.shape)
 
         # Inverse sum all weighting
@@ -196,12 +198,12 @@ class DynamicFeaturizer:
             inv_sum_all_max = np.transpose(np.max(inverse_sum_all_matrix, axis=0))
             inv_sum_all_count = np.transpose(np.sum(count_inverse_sum_all_matrix, axis=0))
         else:
-            inv_sum_all_sum = np.zeros(len(candidates), 1)
-            inv_sum_all_mean = np.zeros(len(candidates), 1)
-            inv_sum_all_std = np.zeros(len(candidates), 1)
-            inv_sum_all_min = np.zeros(len(candidates), 1)
-            inv_sum_all_max = np.zeros(len(candidates), 1)
-            inv_sum_all_count = np.zeros(len(candidates), 1)
+            inv_sum_all_sum = np.zeros((len(candidates), 1))
+            inv_sum_all_mean = np.zeros((len(candidates), 1))
+            inv_sum_all_std = np.zeros((len(candidates), 1))
+            inv_sum_all_min = np.zeros((len(candidates), 1))
+            inv_sum_all_max = np.zeros((len(candidates), 1))
+            inv_sum_all_count = np.zeros((len(candidates), 1))
 
         # Add inverse sum all weighting features
         self.features = np.c_[
@@ -223,12 +225,12 @@ class DynamicFeaturizer:
             inv_sum_candidate_max = np.transpose(np.max(inverse_sum_candidate_matrix, axis=0))
             inv_sum_candidate_count = np.transpose(np.sum(count_inverse_sum_candidate_matrix, axis=0))
         else:
-            inv_sum_candidate_sum = np.zeros(len(candidates), 1)
-            inv_sum_candidate_mean = np.zeros(len(candidates), 1)
-            inv_sum_candidate_std = np.zeros(len(candidates), 1)
-            inv_sum_candidate_min = np.zeros(len(candidates), 1)
-            inv_sum_candidate_max = np.zeros(len(candidates), 1)
-            inv_sum_candidate_count = np.zeros(len(candidates), 1)
+            inv_sum_candidate_sum = np.zeros((len(candidates), 1))
+            inv_sum_candidate_mean = np.zeros((len(candidates), 1))
+            inv_sum_candidate_std = np.zeros((len(candidates), 1))
+            inv_sum_candidate_min = np.zeros((len(candidates), 1))
+            inv_sum_candidate_max = np.zeros((len(candidates), 1))
+            inv_sum_candidate_count = np.zeros((len(candidates), 1))
 
         # Dual Cost weighting
         if active_constraints.sum() != 0:
@@ -242,14 +244,14 @@ class DynamicFeaturizer:
             dual_max = np.max(active_matrix * dual_values, axis=0)[:, None]
             dual_count = np.sum(np.asarray(count_active_matrix) * dual_values, axis=0)[:, None]
         else:
-            dual_values = np.zeros(len(candidates), 1)
-            active_matrix = np.zeros(len(candidates), 1)
-            dual_sum = np.zeros(len(candidates), 1)
-            dual_mean = np.zeros(len(candidates), 1)
-            dual_std = np.zeros(len(candidates), 1)
-            dual_min = np.zeros(len(candidates), 1)
-            dual_max = np.zeros(len(candidates), 1)
-            dual_count = np.zeros(len(candidates), 1)
+            dual_values = np.zeros((len(candidates), 1))
+            active_matrix = np.zeros((len(candidates), 1))
+            dual_sum = np.zeros((len(candidates), 1))
+            dual_mean = np.zeros((len(candidates), 1))
+            dual_std = np.zeros((len(candidates), 1))
+            dual_min = np.zeros((len(candidates), 1))
+            dual_max = np.zeros((len(candidates), 1))
+            dual_count = np.zeros((len(candidates), 1))
 
         self.features = np.c_[
             static_features.features[candidates, :],
