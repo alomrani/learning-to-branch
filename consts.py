@@ -1,11 +1,3 @@
-# Dataset types
-HOMOGENEOUS = 'HOMOGENEOUS'
-HETEROGENEOUS = 'HETEROGENEOUS'
-DATASET_TYPE = [
-    HOMOGENEOUS,
-    HETEROGENEOUS
-]
-
 # Run modes
 GENERATE_OPTIMAL = 0
 BRANCHING = 1
@@ -23,6 +15,8 @@ MINIMIZE = 1
 LP_OPTIMAL = 1
 LP_INFEASIBLE = 3
 LP_ABORT_IT_LIM = 10
+MIP_OPTIMAL = 101
+
 INFEASIBILITY_SCORE = 1e6
 
 # CPLEX branch creation constants
@@ -58,4 +52,3 @@ WARM_START = [
     'AVERAGE_MODEL',
     'INCREMENTAL_WARM_START'
 ]
-BETA = -1  # Number of instances to solve before warm-starting

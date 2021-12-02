@@ -7,7 +7,6 @@ import consts
 import params
 from featurizer import DynamicFeaturizer, StaticFeaturizer
 from models.MLPClassifier import MLPClassifier1 as MLPClassifier
-from run import update_meta_model_param
 from utils import (get_clone, get_data, get_logging_callback,
                    set_params, solve_as_lp, get_sb_scores, get_candidates)
 
@@ -34,7 +33,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                     feature_diff.append(-(node_feat[j] - node_feat[i]))
                     bipartite_rank_labels.append(-(labels[j] - labels[i]))
         return np.asarray(feature_diff), np.asarray(bipartite_rank_labels)
-
 
     def __call__(self):
 
@@ -174,7 +172,8 @@ def solve_instance(path='set_cover.lp',
     elif branch_strategy == consts.BS_SB_ML_SVMRank:
         vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2)
     elif branch_strategy == consts.BS_SB_ML_NN:
-        vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=100, max_iter=300, warm_start=True, tol=1e-6)
+        vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=100, max_iter=300, warm_start=True,
+                                      tol=1e-6)
     # Solve the instance and save stats
     c.solve()
 
