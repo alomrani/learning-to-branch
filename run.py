@@ -68,7 +68,7 @@ def run(opts):
         # scorefile_path = output_path / exp_key / "scorefile.csv"
         # scorefile_path = scorefile_path.expanduser()
         for instance_path in instance_paths:
-            c, log_cb, *_ = solve_branching(instance_path, output_path, opts, theta=opts.theta2)
+            c, log_cb, *_ = solve_branching(instance_path, output_path, opts)
             # num_nodes, total_nodes = -1, -1
             # if c is not None:
             #     solve_status_id = c.solution.get_status()

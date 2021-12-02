@@ -134,6 +134,7 @@ def solve_instance(path='set_cover.lp',
                    k=params.K,
                    alpha=params.ALPHA,
                    epsilon=params.EPSILON,
+                   max_iterations=50,
                    warm_start_model=None):
     # Read instance and set default parameters
     np.random.seed(seed)
@@ -163,6 +164,7 @@ def solve_instance(path='set_cover.lp',
     vsel_cb.EPSILON = epsilon
     vsel_cb.UPPER_BOUND = upper_bound
     vsel_cb.LOWER_BOUND = lower_bound
+    vsel_cb.max_iterations = max_iterations
     vsel_cb.num_infeasible_left = np.zeros(len(var_idx_lst))
     vsel_cb.num_infeasible_right = np.zeros(len(var_idx_lst))
     vsel_cb.node_feat = []

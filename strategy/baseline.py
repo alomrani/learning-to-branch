@@ -76,8 +76,8 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
 
             self.make_branch(obj_val, variables=[branch], constraints=[], node_data=node_data_clone)
 
-        # if self.times_called == 5:
-        #     self.abort()
+        if self.times_called == 5:
+            self.abort()
 
 
 def solve_instance(
@@ -88,6 +88,7 @@ def solve_instance(
         test=True,
         branch_strategy=consts.BS_PC,
         theta=params.THETA,
+        max_iterations=50,
         warm_start_model=None):
     # Read instance and set default parameters
     c = CPX.Cplex(path)
@@ -111,6 +112,7 @@ def solve_instance(
     vsel_cb.branch_strategy = branch_strategy
     vsel_cb.times_called = 0
     vsel_cb.THETA = theta
+    vsel_cb.max_iterations = max_iterations
     vsel_cb.model = None
 
     # Solve the instance and save stats

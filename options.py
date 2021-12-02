@@ -70,6 +70,13 @@ def get_options(args=None):
     )
 
     parser.add_argument(
+        "--max_iterations",
+        help="Maximum iterations for LP",
+        type=int,
+        default=50
+    )
+
+    parser.add_argument(
         "--theta",
         help="Number of data samples collected while training meta model",
         type=int,

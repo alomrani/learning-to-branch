@@ -130,7 +130,6 @@ def solve_as_lp(c, max_iterations=50):
 
     c.solve()
     status, objective, dual_values = None, None, None
-
     status = c.solution.get_status()
     if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
         objective = c.solution.get_objective_value()
@@ -239,7 +238,7 @@ def get_candidates(pseudocosts, values, values_dict, branch_strategy, var_name_l
 
 def get_sb_scores(context, candidate_idxs):
     cclone = get_clone(context)
-    status, parent_objective, dual_values = solve_as_lp(cclone)
+    status, parent_objective, dual_values = solve_as_lp(cclone, max_iterations=context.max_iterations)
 
     sb_scores = []
     if status == consts.LP_OPTIMAL or status == consts.LP_ABORT_IT_LIM:
@@ -364,7 +363,8 @@ def update_meta_model_param(meta_model_param, new_model, iter, opts):
     return meta_model_param, warm_start_model
 
 
-def solve_branching(instance_path, output_path, opts, theta, warm_start_model=None):
+def solve_branching(instance_path, output_path, opts,
+                    max_iterations=50, warm_start_model=None):
     # Load instance
     assert instance_path.exists(), "Instance not found!"
 
@@ -374,16 +374,25 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
     opts_dict, cutoff = get_optimal_obj_dict(output_path, instance_path)
     if opts_dict is None or cutoff is None or cutoff == 1e6:
         return None, None, None
-    if opts.mode != consts.TRAIN_META:
+
+    theta_instance = opts.theta
+    if opts.mode == consts.TRAIN_META:
+        print("* Training meta-model...")
+        meta_model = warm_start_model
+    else:
         print("* Loading Meta-model")
         meta_model = joblib.load(
             f'pretrained/{instance_path.parent.name}_{opts.beta}_{opts.theta}'
             f'_{consts.WARM_START[opts.warm_start]}.joblib') \
             if opts.warm_start != consts.NONE else None
-    else:
-        meta_model = warm_start_model
+
+        # If we find a meta model in branching mode, we do data collection only for theta2 nodes
+        if meta_model is not None:
+            theta_instance = opts.theta2
+
     if meta_model is None:
         print('\t** No meta-model found!')
+    print(f'\t** Theta used : {theta_instance}')
 
     beta_theta_dir = f"{opts.beta}_{opts.theta}_{opts.theta2}_{consts.WARM_START[opts.warm_start]}"
     output_path1 = output_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
@@ -416,7 +425,8 @@ def solve_branching(instance_path, output_path, opts, theta, warm_start_model=No
         seed=opts.seed,
         test=False,
         warm_start_model=meta_model,
-        theta=theta,
+        theta=theta_instance,
+        max_iterations=max_iterations
     )
 
     save_mip_solve_info(c, instance_path, output_path1, log_cb.total_time,
