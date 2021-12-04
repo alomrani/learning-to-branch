@@ -1,19 +1,13 @@
-from math import floor
-from operator import itemgetter
-import time
 import numpy as np
 from scipy.sparse import csr_matrix
 
-import featurizer
-
 
 class DynamicFeaturizer:
-    def __init__(self, branch_instance, candidates, cclone):
-
-        static_features = branch_instance.stat_feat
+    def __init__(self, context, candidates, cclone):
+        static_features = context.stat_feat
         # Part 1: Slack and ceil distances
-        self.values = np.asarray(branch_instance.get_values()).reshape(-1, 1)
-        self.values = self.values[candidates]  # Filter by candidates
+        self.values = np.asarray(context.get_values(candidates)).reshape(-1, 1)
+        # self.values = self.values[candidates]  # Filter by candidates
 
         # 1. Min of slack and ceil
         ceil = np.ceil(self.values)
@@ -26,11 +20,10 @@ class DynamicFeaturizer:
         # Add 1, 2 to features
         self.features = np.c_[fractionality, dist_ceil]
 
-
         # Part 2: Pseudocosts
 
         # 3. Upwards and downwards pseudocosts weighted by fractionality
-        self.pseudocosts = np.asarray(branch_instance.get_pseudo_costs())
+        self.pseudocosts = np.asarray(context.get_pseudo_costs())
         self.pseudocosts = self.pseudocosts[candidates]
         up_down_pc = self.pseudocosts * fractionality
 
@@ -51,18 +44,19 @@ class DynamicFeaturizer:
         # print('1, 2', self.features.shape)
 
         # Part 3: Infeasibility statistics
-        num_lower_infeasible = branch_instance.num_infeasible_left[candidates][:, None]
-        num_upper_infeasible = branch_instance.num_infeasible_right[candidates][:, None]
+        num_lower_infeasible = context.num_infeasible_left[candidates][:, None]
+        num_upper_infeasible = context.num_infeasible_right[candidates][:, None]
 
-        fraction_infeasible_lower = num_lower_infeasible / branch_instance.times_called
-        fraction_infeasible_upper = num_upper_infeasible / branch_instance.times_called
+        fraction_infeasible_lower = num_lower_infeasible / context.times_called
+        fraction_infeasible_upper = num_upper_infeasible / context.times_called
 
         self.features = np.c_[
             self.features, num_lower_infeasible, num_upper_infeasible, fraction_infeasible_lower, fraction_infeasible_upper]
-        
+
         # print(self.features.shape)
         # Part 4: Stats. for constraint degrees
-        not_set_variables = (np.asarray(cclone.variables.get_lower_bounds()) != np.asarray(cclone.variables.get_upper_bounds()))
+        not_set_variables = (
+                np.asarray(cclone.variables.get_lower_bounds()) != np.asarray(cclone.variables.get_upper_bounds()))
         self.matrix = static_features.matrix.multiply(csr_matrix(not_set_variables[None, :]))
         non_zeros = self.matrix != 0
         num_var_for_const = non_zeros.sum(1)
@@ -79,7 +73,7 @@ class DynamicFeaturizer:
 
         # Max of degrees
         max_degrees = np.transpose(np.max(degree_matrix, axis=0))[candidates, :]
-        
+
         # Mean Ratio static to Dynamic
         mean_degrees_c = mean_degrees + (mean_degrees == 0).astype(float)
         mean_degrees_ratio = static_features.features[candidates, 4] / mean_degrees_c
@@ -155,7 +149,7 @@ class DynamicFeaturizer:
         # Part 7: Stats for active constraints
         ## TODO: CHECK IF STATS ARE OVER ABSOLUTE VALUE OF CONSTRAINSTS COEFFICIENTS
 
-        slacks = np.asarray(branch_instance.get_linear_slacks())
+        slacks = np.asarray(context.get_linear_slacks())
         active_constraints = slacks == 0
         if active_constraints.sum() != 0:
 
@@ -235,7 +229,7 @@ class DynamicFeaturizer:
         # Dual Cost weighting
         if active_constraints.sum() != 0:
 
-            dual_values = np.asarray(branch_instance.curr_node_dual_values[active_constraints])[:, None]
+            dual_values = np.asarray(context.curr_node_dual_values[active_constraints])[:, None]
             active_matrix = np.asarray(active_matrix)
             dual_sum = np.sum(active_matrix * dual_values, axis=0)[:, None]
             dual_mean = np.mean(active_matrix * dual_values, axis=0)[:, None]
@@ -268,5 +262,3 @@ class DynamicFeaturizer:
             dual_max,
             dual_count
         ]
-
-

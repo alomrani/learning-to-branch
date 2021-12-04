@@ -14,31 +14,17 @@ from utils import set_params
 
 class VariableSelectionCallback(CPX_CB.BranchCallback):
     def __call__(self):
-        # Check if the strategy is driven by CPLEX
+        # Check if the strategy is driven by CPLEX.
+        # If yes, then create default branches
         if (self.branch_strategy == consts.CPX_DEFAULT
                 or self.branch_strategy == consts.CPX_PC
                 or self.branch_strategy == consts.CPX_SB):
             create_default_branches(self)
 
         # Find candidates for branching
-        # pseudocosts = self.get_pseudo_costs(self.var_idx_lst)
-        pseudocosts = self.get_pseudo_costs(self.var_name_lst)
-        pseudocosts_dict = {k: v for k, v in zip(self.var_name_lst, pseudocosts)}
-
-        # values = self.get_values(self.var_idx_lst)
-        values = self.get_values(self.var_name_lst)
-        values_dict = {k: v for k, v in zip(self.var_name_lst, values)}
-
-        # candidate_idxs = get_candidates(pseudocosts, values, self.branch_strategy, self.var_idx_lst)
-        candidate_names = get_candidates(pseudocosts, values, values_dict, self.branch_strategy, self.var_name_lst)
-        # print("++++++++++", candidate_names)
-
-        # if len(candidate_idxs) == 0:
-        #     return
-        if len(candidate_names) == 0:
+        candidate_idxs = get_candidates(self)
+        if len(candidate_idxs) == 0:
             return
-        else:
-            candidate_idxs = [self.var_name_idx_dict[k] for k in candidate_names]
 
         # Select branching variable idx
         self.times_called += 1
@@ -57,8 +43,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
         # Nothing to branch on
         if branching_var_idx is None:
             return
-        # print("*********", branching_var_idx, pseudocosts_dict['x394'], pseudocosts_dict['x395'],
-        #   pseudocosts_dict['x393'])
 
         branching_val = self.get_values(branching_var_idx)
         obj_val = self.get_objective_value()
@@ -75,9 +59,6 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
             node_data_clone['branch_history'].append(branch)
 
             self.make_branch(obj_val, variables=[branch], constraints=[], node_data=node_data_clone)
-
-        if self.times_called == 5:
-            self.abort()
 
 
 def solve_instance(
@@ -98,17 +79,11 @@ def solve_instance(
 
     log_cb = get_logging_callback(c)
 
+    num_vars = c.variables.get_num()
     vsel_cb = c.register_callback(VariableSelectionCallback)
     vsel_cb.c = c
-    var_name_lst = c.variables.get_names()
-    vsel_cb.var_name_lst = var_name_lst
-    var_idx_lst = c.variables.get_indices(var_name_lst)
-    vsel_cb.var_idx_lst = var_idx_lst
-    vsel_cb.var_name_idx_dict = {i[0]: i[1] for i in zip(var_name_lst, var_idx_lst)}
-
-    # for i in zip(var_name_lst, var_idx_lst):
-    #     print(i[0], i[1])
-
+    vsel_cb.ordered_var_idx_lst = list(range(num_vars))
+    
     vsel_cb.branch_strategy = branch_strategy
     vsel_cb.times_called = 0
     vsel_cb.THETA = theta

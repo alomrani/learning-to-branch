@@ -49,7 +49,9 @@ def set_params(c, cutoff=None,
 
     # Disable presolve
     c.parameters.preprocessing.presolve.set(0)
-
+    c.parameters.preprocessing.reduce.set(0)
+    c.parameters.advance.set(0)
+    c.parameters.preprocessing.linear.set(0)
     c.parameters.mip.tolerances.integrality.set(params.EPSILON)
 
     c.parameters.mip.strategy.search.set(
@@ -191,49 +193,36 @@ def get_clone(context):
     return cclone
 
 
-# def get_candidates(pseudocosts, values, branch_strategy, var_idx_lst):
-#     up_frac = np.ceil(values) - values
-#     down_frac = values - np.floor(values)
-#
-#     scores = [(uf * df * pc[0] * pc[1], vidx)
-#               for pc, uf, df, vidx in zip(pseudocosts, up_frac, down_frac, var_idx_lst)]
-#     scores = sorted(scores, key=itemgetter(0), reverse=True)
-#
-#     num_candidates = params.K if branch_strategy != consts.BS_PC else 1
-#     candidate_idxs = []
-#     ranked_var_idx_lst = [i[1] for i in scores]
-#     for var_idx in ranked_var_idx_lst:
-#         if len(candidate_idxs) == num_candidates:
-#             break
-#
-#         value = values[var_idx]
-#         if not abs(value - round(value)) <= params.EPSILON:
-#             candidate_idxs.append(var_idx)
-#
-#     return candidate_idxs
+def get_candidates(context):
+    """Find candidate variables at the current node in the B&B tree
+    for branching.
+    """
+    pseudocosts = context.get_pseudo_costs(context.ordered_var_idx_lst)
+    values = context.get_values(context.ordered_var_idx_lst)
 
-
-def get_candidates(pseudocosts, values, values_dict, branch_strategy, var_name_lst):
     up_frac = np.ceil(values) - values
     down_frac = values - np.floor(values)
 
-    scores = [(uf * df * pc[0] * pc[1], vname)
-              for pc, uf, df, vname in zip(pseudocosts, up_frac, down_frac, var_name_lst)]
-    scores = sorted(scores, key=itemgetter(0), reverse=True)
-    # print("-----------", scores[:20])
-    ranked_var_name_lst = [i[1] for i in scores]
+    # Find scores
+    scores = [(uf * df * pc[0] * pc[1], vidx)
+              for vidx, (pc, uf, df) in enumerate(zip(pseudocosts, up_frac, down_frac))]
 
-    num_candidates = params.K if branch_strategy != consts.BS_PC else 1
-    candidate_names = []
-    for name in ranked_var_name_lst:
-        if len(candidate_names) == num_candidates:
+    # Sort scores in descending order
+    scores = sorted(scores, key=itemgetter(0), reverse=True)
+
+    # Select candidates based on sorted scores
+    num_candidates = params.K if context.branch_strategy != consts.BS_PC else 1
+    candidate_idxs = []
+    ranked_var_idx_lst = [i[1] for i in scores]
+    for var_idx in ranked_var_idx_lst:
+        if len(candidate_idxs) == num_candidates:
             break
 
-        value = values_dict[name]
+        value = values[var_idx]
         if not abs(value - round(value)) <= params.EPSILON:
-            candidate_names.append(name)
+            candidate_idxs.append(var_idx)
 
-    return candidate_names
+    return candidate_idxs
 
 
 def get_sb_scores(context, candidate_idxs):
