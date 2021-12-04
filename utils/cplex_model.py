@@ -258,7 +258,7 @@ def get_sb_scores(context, candidate_idxs):
     return sb_scores, cclone
 
 
-def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=None):
+def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=None, trained_model=None):
     """ Save relevant information after a MIP solve like status, objective value,
     time, # branching calls, and # nodes.
 
@@ -286,6 +286,7 @@ def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=
     print(f"\n  I: {instance_path.name} S: {solve_status_verbose}, T: {total_time}, BC: {branch_calls}, "
           f"N: {num_nodes}, OBJ: {objective_value}\n")
 
+    training_logs = np.asarray(trained_model.loss_curve_) if trained_model is not None else None
     # Prepare result
     result_dict = {str(instance_path): {'status': solve_status_id,
                                         'status_verbose': solve_status_verbose,
@@ -297,6 +298,8 @@ def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=
     # Save results
     print(f'* Saving mip solve result to: {output_path}')
     pkl.dump(result_dict, open(output_path, 'wb'))
+    if training_logs is not None:
+        np.save(output_path, training_logs)
     # print(result_dict)
 
 
@@ -417,8 +420,8 @@ def solve_branching(instance_path, output_path, opts,
         theta=theta_instance,
         max_iterations=max_iterations
     )
-
+    trained_NN_model = vsel_cb.model if opts.strategy == consts.BS_SB_ML_NN else None
     save_mip_solve_info(c, instance_path, output_path1, log_cb.total_time,
-                        branch_calls=vsel_cb.times_called)
+                        branch_calls=vsel_cb.times_called, trained_model=trained_NN_model)
 
     return c, log_cb, vsel_cb
