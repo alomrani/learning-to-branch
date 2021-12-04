@@ -56,7 +56,7 @@ def run(opts):
     elif opts.mode == consts.BRANCHING:
         # Solve multiple instances in parallel using SLURM array jobs
         if opts.strategy > 5:
-            assert opts.theta2 > 0, "Theta must be set"
+            assert opts.theta > 0, "Theta must be set"
         if opts.warm_start != 0:
             assert opts.beta > 0 and opts.theta > 0 and opts.theta2 > 0, "Beta, theta, theta2 must be set"
 

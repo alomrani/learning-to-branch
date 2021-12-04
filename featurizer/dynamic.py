@@ -23,8 +23,7 @@ class DynamicFeaturizer:
         # Part 2: Pseudocosts
 
         # 3. Upwards and downwards pseudocosts weighted by fractionality
-        self.pseudocosts = np.asarray(context.get_pseudo_costs())
-        self.pseudocosts = self.pseudocosts[candidates]
+        self.pseudocosts = np.asarray(context.get_pseudo_costs(candidates)).reshape(-1, 2)
         up_down_pc = self.pseudocosts * fractionality
 
         # 4. Sum of pseudocosts weighted by fractionality
@@ -116,6 +115,7 @@ class DynamicFeaturizer:
         # print(self.features.shape)
         # Add 7, 8, 9, 10 to features
         self.features = np.c_[self.features, min_ratio_pos, max_ratio_pos, min_ratio_neg, max_ratio_neg]
+
         # print('1, 2, 5', self.features.shape)
 
         # Part 6: Min/max for one-to-all coefficient ratios

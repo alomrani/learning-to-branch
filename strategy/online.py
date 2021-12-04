@@ -74,11 +74,11 @@ class VariableSelectionCallback(CPX_CB.BranchCallback):
                 # Train model
                 print("* Making dataset")
                 feat_diff, rank_labels = self.node_feat, self.rank_labels
-                if self.strategy == consts.BS_SB_ML_SVMRank:
+                if self.branch_strategy == consts.BS_SB_ML_SVMRank:
                     print("* Training Model")
                     self.model = self.model.fit(feat_diff, rank_labels[:, 0])
                     print("* Done")
-                elif self.strategy == consts.BS_SB_ML_NN:
+                elif self.branch_strategy == consts.BS_SB_ML_NN:
                     print("* Training Model")
                     self.model = self.model.fit(feat_diff, rank_labels[:, 0])
                     print("* Done")

@@ -347,7 +347,7 @@ def update_meta_model_param(meta_model_param, new_model, iter, opts):
                                              n_iter_no_change=100, max_iter=300, warm_start=True)
         dataset_type = pathlib.Path(opts.dataset).name
         joblib.dump(warm_start_model,
-                    f'pretrained/{dataset_type}_{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib')
+                    f'pretrained/{dataset_type}_{opts.beta}_{opts.theta2}_{consts.WARM_START[opts.warm_start]}.joblib')
 
     return meta_model_param, warm_start_model
 
@@ -371,7 +371,7 @@ def solve_branching(instance_path, output_path, opts,
     else:
         print("* Loading Meta-model")
         meta_model = joblib.load(
-            f'pretrained/{instance_path.parent.name}_{opts.beta}_{opts.theta}'
+            f'pretrained/{instance_path.parent.name}_{opts.beta}_{opts.theta2}'
             f'_{consts.WARM_START[opts.warm_start]}.joblib') \
             if opts.warm_start != consts.NONE else None
 
@@ -387,7 +387,7 @@ def solve_branching(instance_path, output_path, opts,
     output_path1 = output_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
     output_path1.mkdir(parents=True, exist_ok=True)
     output_path1 = output_path1.joinpath(str(instance_path.stem) + ".pkl")
-
+    print(output_path1)
     if output_path1.exists():
         print("* Solution already computed during meta-model training, aborting....")
         return None, None, None

@@ -7,7 +7,8 @@ class StaticFeaturizer:
         self.num_rows = cplex_instance.linear_constraints.get_num()
         self.num_vars = cplex_instance.variables.get_num()
         self.rows = cplex_instance.linear_constraints.get_rows()  # List of SparsePair objects - SparsePair(ind=[], val=[])
-        self.obj = np.array(cplex_instance.objective.get_linear(ordered_var_idx_lst))
+        self.rhs = np.asarray(cplex_instance.linear_constraints.get_rhs())
+        self.obj = np.asarray(cplex_instance.objective.get_linear(ordered_var_idx_lst))
 
         # Generate the row x column matrix
         self.matrix = csr_matrix((self.num_rows, self.num_vars))
