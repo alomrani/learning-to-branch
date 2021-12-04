@@ -314,6 +314,7 @@ def find_cutoff(instance_path, output_path, opts):
     c = CPX.Cplex(str(instance_path))
     c.parameters.timelimit.set(opts.timelimit)
     c.parameters.threads.set(4)
+
     disable_output(c)
     tick = time.time()
     c.solve()
@@ -371,16 +372,15 @@ def solve_branching(instance_path, output_path, opts,
     if opts.mode == consts.TRAIN_META:
         print("* Training meta-model...")
         meta_model = warm_start_model
+        # If training meta model in branching mode, we do data collection only for theta2 nodes
+        if meta_model is not None:
+            theta_instance = opts.theta2
     else:
         print("* Loading Meta-model")
         meta_model = joblib.load(
             f'pretrained/{instance_path.parent.name}_{opts.beta}_{opts.theta2}'
             f'_{consts.WARM_START[opts.warm_start]}.joblib') \
             if opts.warm_start != consts.NONE else None
-
-        # If we find a meta model in branching mode, we do data collection only for theta2 nodes
-        if meta_model is not None:
-            theta_instance = opts.theta2
 
     if meta_model is None:
         print('\t** No meta-model found!')
