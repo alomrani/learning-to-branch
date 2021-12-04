@@ -1,5 +1,5 @@
 import sys
-
+import numpy as np
 import consts
 from options import get_options
 from utils import find_cutoff, get_paths, solve_branching, update_meta_model_param
@@ -7,6 +7,7 @@ from utils import find_cutoff, get_paths, solve_branching, update_meta_model_par
 
 def run(opts):
     print(f'* Run mode: {consts.MODE[opts.mode]}')
+    np.random.seed(opts.seed)
 
     # Get paths to output and instances
     instance_paths, output_path = get_paths(opts)

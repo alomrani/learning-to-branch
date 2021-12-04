@@ -166,7 +166,7 @@ def solve_instance(
         vsel_cb.model = SVC(gamma='scale', decision_function_shape='ovo', C=0.1, degree=2)
     elif branch_strategy == consts.BS_SB_ML_NN:
         vsel_cb.model = MLPClassifier(learning_rate_init=0.01, n_iter_no_change=100,
-                                      max_iter=300, warm_start=True, tol=1e-6)
+                                      max_iter=300, warm_start=True, tol=1e-6, random_state=seed)
     # Solve the instance and save stats
     c.solve()
 
