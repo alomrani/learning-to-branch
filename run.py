@@ -35,24 +35,24 @@ def run(opts):
         )
 
         meta_model_param, warm_start_model = None, None
-        theta = opts.theta
+        theta = opts.theta2
         num_instances_trained = 0
         for i, f in enumerate(instance_paths):
             # Only process instances that are solved by the CPLEX to
             # optimality and use their optimal objective value as cutoff
             if num_instances_trained >= opts.beta:
                 break
-            c, log_cb, vsel_cb = solve_branching(f, output_path, opts, theta=opts.theta,
+            c, log_cb, vsel_cb = solve_branching(f, output_path, opts,
                                                  warm_start_model=warm_start_model)
             if c is None:
                 continue
-            if vsel_cb.times_called >= opts.theta:
+            if vsel_cb.times_called >= opts.theta2:
                 trained_model = vsel_cb.model
                 num_instances_trained += 1
                 meta_model_param, warm_start_model = update_meta_model_param(meta_model_param, trained_model,
                                                                              num_instances_trained, opts)
         print(
-            f"* Meta Model generated and saved at: pretrained/{f.parent.name}_{opts.beta}_{opts.theta}_{consts.WARM_START[opts.warm_start]}.joblib")
+            f"* Meta Model generated and saved at: pretrained/{f.parent.name}_{opts.beta}_{opts.theta2}_{consts.WARM_START[opts.warm_start]}.joblib")
 
     elif opts.mode == consts.BRANCHING:
         # Solve multiple instances in parallel using SLURM array jobs
