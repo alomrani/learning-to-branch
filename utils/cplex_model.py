@@ -113,7 +113,7 @@ def get_optimal_obj_dict(output_path, instance_path):
         opt_dict = pkl.load(open(optimal_obj_path, 'rb'))
         key = str(instance_path)
         if key in opt_dict and opt_dict[key]['status'] == consts.MIP_OPTIMAL:
-            cutoff = opt_dict[key]['objective_value']
+            cutoff = float(opt_dict[key]['objective_value'])
             print(f"\t** Cutoff: {cutoff}")
         else:
             print(f"\t** Instance cutoff not found...")
