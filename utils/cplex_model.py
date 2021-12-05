@@ -106,7 +106,8 @@ def get_optimal_obj_dict(output_path, instance_path):
     # Check if optimal solution exists to provide as cutoff
     cutoff = 1e6
     opt_dict = None
-    optimal_obj_path = output_path.joinpath(f"optimal_obj/{instance_path.stem}.pkl")
+    instance_name = instance_path.stem if str(instance_path)[:6] != "miplib" else instance_path.stem[:-4]
+    optimal_obj_path = output_path.joinpath(f"optimal_obj/{instance_name}.pkl")
     print(f"* Checking optimal objective pickle at {optimal_obj_path}...")
     if optimal_obj_path.exists():
         opt_dict = pkl.load(open(optimal_obj_path, 'rb'))
@@ -389,7 +390,8 @@ def solve_branching(instance_path, output_path, opts,
     beta_theta_dir = f"{opts.beta}_{opts.theta}_{opts.theta2}_{consts.WARM_START[opts.warm_start]}"
     output_path1 = output_path / consts.STRATEGY[opts.strategy] / beta_theta_dir
     output_path1.mkdir(parents=True, exist_ok=True)
-    output_path1 = output_path1.joinpath(str(instance_path.stem) + ".pkl")
+    instance_name = instance_path.stem if str(instance_path)[:6] != "miplib" else instance_path.stem[:-4]
+    output_path1 = output_path1.joinpath(str(instance_name) + ".pkl")
     print(output_path1)
     if output_path1.exists():
         print("* Solution already computed during meta-model training, aborting....")
