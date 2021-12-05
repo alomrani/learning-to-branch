@@ -258,7 +258,7 @@ def get_sb_scores(context, candidate_idxs):
     return sb_scores, cclone
 
 
-def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=None, trained_model=None):
+def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=None, trained_model=None, theta=0):
     """ Save relevant information after a MIP solve like status, objective value,
     time, # branching calls, and # nodes.
 
@@ -286,7 +286,7 @@ def save_mip_solve_info(c, instance_path, output_path, total_time, branch_calls=
     print(f"\n  I: {instance_path.name} S: {solve_status_verbose}, T: {total_time}, BC: {branch_calls}, "
           f"N: {num_nodes}, OBJ: {objective_value}\n")
 
-    training_logs = np.asarray(trained_model.loss_curve_) if trained_model is not None else None
+    training_logs = np.asarray(trained_model.loss_curve_) if (trained_model is not None and branch_calls >= theta) else None
     # Prepare result
     result_dict = {str(instance_path): {'status': solve_status_id,
                                         'status_verbose': solve_status_verbose,
@@ -373,8 +373,7 @@ def solve_branching(instance_path, output_path, opts,
         print("* Training meta-model...")
         meta_model = warm_start_model
         # If training meta model in branching mode, we do data collection only for theta2 nodes
-        if meta_model is not None:
-            theta_instance = opts.theta2
+        theta_instance = opts.theta2
     else:
         print("* Loading Meta-model")
         meta_model = joblib.load(
@@ -422,6 +421,6 @@ def solve_branching(instance_path, output_path, opts,
     )
     trained_NN_model = vsel_cb.model if opts.strategy == consts.BS_SB_ML_NN else None
     save_mip_solve_info(c, instance_path, output_path1, log_cb.total_time,
-                        branch_calls=vsel_cb.times_called, trained_model=trained_NN_model)
+                        branch_calls=vsel_cb.times_called, trained_model=trained_NN_model, theta=theta_instance)
 
     return c, log_cb, vsel_cb
