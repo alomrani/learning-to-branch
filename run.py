@@ -1,5 +1,7 @@
 import sys
+
 import numpy as np
+
 import consts
 from options import get_options
 from utils import find_cutoff, get_paths, solve_branching, update_meta_model_param
@@ -61,27 +63,10 @@ def run(opts):
         if opts.warm_start != 0:
             assert opts.beta > 0 and opts.theta > 0 and opts.theta2 > 0, "Beta, theta, theta2 must be set"
 
-        # exp_key = f"{consts.STRATEGY[opts.strategy]}"
-        # exp_key = "_".join([exp_key, f"{opts.beta}", f"{opts.theta}", f"{opts.theta2}"])
-        # exp_key = "_".join([exp_key, f"{consts.WARM_START[opts.warm_start]}"])
-
         assert 0 <= opts.strategy <= len(consts.STRATEGY), "Unknown branching strategy"
-        # scorefile_path = output_path / exp_key / "scorefile.csv"
-        # scorefile_path = scorefile_path.expanduser()
         for instance_path in instance_paths:
             c, log_cb, *_ = solve_branching(instance_path, output_path, opts)
-            # num_nodes, total_nodes = -1, -1
-            # if c is not None:
-            #     solve_status_id = c.solution.get_status()
-            #     if solve_status_id == c.solution.status.MIP_optimal:
-            #         num_nodes = c.solution.progress.get_num_nodes_processed()
-            #         total_time = log_cb.total_time
-            #
-            # results = (instance_path.expanduser(), num_nodes, total_time)
-
-            # with open(scorefile_path, "a") as f:
-            #     f.write(f'{",".join(map(str, results))}\n')
-
+        
 
 if __name__ == "__main__":
     """
