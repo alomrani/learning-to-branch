@@ -2,7 +2,9 @@
 
 run.py: File to run
 
-train.py: all training code
+featurizer/static.py: static features
+
+featurizer/dynamic.py: static features
 
 options.py: all file options to run run.py
 
