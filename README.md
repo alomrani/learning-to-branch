@@ -1,12 +1,16 @@
 # Meta Learning to Branch in Mixed Integer Programming
 
-run.py: File to run
+`run.py`: File to run
 
-featurizer/static.py: static features
+`featurizer/static.py`: static features
 
-featurizer/dynamic.py: static features
+`featurizer/dynamic.py`: static features
 
-options.py: all file options to run run.py
+`options.py`: all file options to run run.py
+
+`strategy/baseline.py`: branching for SB and PC
+
+`strategy/online.py`: branching with learned model
 
 
 * Usage instructions
